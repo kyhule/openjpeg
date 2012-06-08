@@ -167,6 +167,7 @@ static INLINE long lrintf(float f){
 #include "pi.h"
 #include "tgt.h"
 #include "tcd.h"
+#include "gpu.h"
 #include "t1.h"
 #include "dwt.h"
 #include "t2.h"

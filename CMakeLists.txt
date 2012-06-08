@@ -8,6 +8,8 @@
 # e.g.:
 # set(OPENJPEG_NAMESPACE "GDCMOPENJPEG")
 cmake_minimum_required(VERSION 2.8.2)
+# Cuda requires 2.8
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 if(COMMAND CMAKE_POLICY)
   cmake_policy(SET CMP0003 NEW)
