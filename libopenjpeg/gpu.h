@@ -6,17 +6,9 @@
 
 /**
 Perform Inverse DC Level Shift on the GPU
-@param current_ptr tile data
-@param m_dc_level_shift value to be added to tile data
-@param height tile width
-@param width  tile height
+@param p_tcd_v2 TCD Handle
 */
-void gpu_dc_level_shift_decode( OPJ_INT32 *current_ptr, 
-		 	        OPJ_INT32 m_dc_level_shift,  
-			        OPJ_INT32 min, OPJ_INT32 max, 
-			        OPJ_UINT32 stride, 
-			        OPJ_UINT32 height, 
-			        OPJ_UINT32 width, 
-			        OPJ_INT32 qmfbid );
+
+opj_bool gpu_dc_level_shift_decode( opj_tcd_v2_t *p_tcd);
 
 #endif

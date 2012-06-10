@@ -2659,13 +2659,16 @@ opj_bool tcd_decode_tile_v2(
 
 	/* FIXME _ProfStart(PGROUP_DC_SHIFT); */
 
-       
+      
+	double l_time = opj_clock(); 	 
+	/* Change to GPU */
 	if
-		(! tcd_dc_level_shift_decode(p_tcd))
+		(! gpu_dc_level_shift_decode(p_tcd))
 	{
 		return OPJ_FALSE;
 	}
-
+	l_time = opj_clock() - l_time;
+	fprintf(stdout,"[INFO] - dc level shift took %f s\n", l_time);
 
 	/* FIXME _ProfStop(PGROUP_DC_SHIFT); */
 
@@ -3072,15 +3075,12 @@ opj_bool tcd_dc_level_shift_decode ( opj_tcd_v2_t *p_tcd )
 			l_max = (1 << (l_img_comp->prec - 1)) - 1;
 		}
 		else {
-            l_min = 0;
+            		l_min = 0;
 			l_max = (1 << l_img_comp->prec) - 1;
 		}
 
 		l_current_ptr = l_tile_comp->data;
-
-		/* Convert the for loop to CUDA kernel */
-
-		/*
+		
 		if (l_tccp->qmfbid == 1) {
 			for (j=0;j<l_height;++j) {
 				for (i = 0; i < l_width; ++i) {
@@ -3099,9 +3099,8 @@ opj_bool tcd_dc_level_shift_decode ( opj_tcd_v2_t *p_tcd )
 				}
 				l_current_ptr += l_stride;
 			}
-		} */ 
+		}  
 
-		gpu_dc_level_shift_decode(l_current_ptr, l_tccp->m_dc_level_shift, l_min, l_max, l_stride, l_height, l_width, l_tccp->qmfbid);
 		++l_img_comp;
 		++l_tccp;
 		++l_tile_comp;
