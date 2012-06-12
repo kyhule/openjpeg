@@ -854,5 +854,9 @@ void dwt_decode_real(opj_tcd_tilecomp_t* restrict tilec, int numres){
 	}
 
 	opj_aligned_free(h.wavelet);
+	printf("[DEBUG] Numres %d, rw %u, rh %u, w %u, height %u\n",numres,rw,rh,w,tilec->y1 - tilec->y0);
+		printf("[DEBUG] bufsize %u, new rw : %u, new rh %u\n",bufsize,rw,rh);
+
+
 }
 

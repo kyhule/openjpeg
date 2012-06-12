@@ -101,3 +101,44 @@ opj_bool gpu_dc_level_shift_decode(opj_tcd_v2_t *p_tcd) {
 	return OPJ_TRUE;
 }
 
+static OPJ_UINT32 dwt_max_wavelet_size_v2(opj_tcd_resolution_v2_t* restrict r, OPJ_UINT32 i) {
+	OPJ_UINT32 mr	= 0;
+	OPJ_UINT32 w;
+	while( --i ) {
+		++r;
+		if( mr < ( w = r->x1 - r->x0 ) )
+			mr = w ;
+		if( mr < ( w = r->y1 - r->y0 ) )
+			mr = w ;
+	}
+	return mr ;
+}
+
+
+
+opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT32 numres) { 
+
+	opj_tcd_resolution_v2_t* res = tilec->resolutions;
+
+	OPJ_UINT32 rw = res->x1 - res->x0;	/* width of the resolution level computed */
+	OPJ_UINT32 rh = res->y1 - res->y0;	/* height of the resolution level computed */
+	OPJ_UINT32 w = tilec->x1 - tilec->x0;
+	printf("[GPU_DEBUG] Numres %d, rw %u, rh %u, w %u, height %u\n",numres,rw,rh,w,tilec->y1 - tilec->y0);
+	
+	OPJ_UINT32 bufsize = (tilec->x1 - tilec->x0) * (tilec->y1 - tilec->y0);
+	OPJ_FLOAT32 * restrict aj = (OPJ_FLOAT32 *) tilec->data;
+	
+	OPJ_FLOAT32 *d_tilec_data;
+	cudaMalloc((OPJ_FLOAT32 **)&d_tilec_data, sizeof(OPJ_FLOAT32)*bufsize);
+	cudaMemcpy(d_tilec_data, aj, sizeof(OPJ_FLOAT32)*bufsize, cudaMemcpyHostToDevice);
+	
+	int wavelet_size = dwt_max_wavelet_size_v2(res, numres);
+
+	float4 *d_h_wavelet; 
+	cudaMalloc((float4 **)&d_h_wavelet, sizeof(float4)*wavelet_size);
+	
+	float4 *d_w_wavelet; 
+	cudaMalloc((float4 **)&d_w_wavelet, sizeof(float4)*wavelet_size);
+	
+	return OPJ_TRUE;
+}

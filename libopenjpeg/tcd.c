@@ -2618,7 +2618,10 @@ opj_bool tcd_decode_tile_v2(
 	/* << INDEX */
 #endif
 
+	double l_time;
+
 	/*--------------TIER2------------------*/
+	l_time = opj_clock(); 	 
 	/* FIXME _ProfStart(PGROUP_T2); */
 	l_data_read = 0;
 	if
@@ -2626,10 +2629,12 @@ opj_bool tcd_decode_tile_v2(
 	{
 		return OPJ_FALSE;
 	}
+	l_time = opj_clock() - l_time;
+	fprintf(stdout,"[INFO] - inverse t2 took %f s\n", l_time);
 	/* FIXME _ProfStop(PGROUP_T2); */
 
 	/*------------------TIER1-----------------*/
-
+	l_time = opj_clock(); 	 
 	/* FIXME _ProfStart(PGROUP_T1); */
 	if
 		(! tcd_t1_decode(p_tcd))
@@ -2637,9 +2642,11 @@ opj_bool tcd_decode_tile_v2(
 		return OPJ_FALSE;
 	}
 	/* FIXME _ProfStop(PGROUP_T1); */
+	l_time = opj_clock() - l_time;
+	fprintf(stdout,"[INFO] - inverse t1 took %f s\n", l_time);
 
 	/*----------------DWT---------------------*/
-
+	l_time = opj_clock(); 	 
 	/* FIXME _ProfStart(PGROUP_DWT); */
 	if
 		(! tcd_dwt_decode(p_tcd))
@@ -2647,7 +2654,10 @@ opj_bool tcd_decode_tile_v2(
 		return OPJ_FALSE;
 	}
 	/* FIXME _ProfStop(PGROUP_DWT); */
-
+	l_time = opj_clock() - l_time;
+	fprintf(stdout,"[INFO] - inverse dwt took %f s\n", l_time);
+	
+	l_time = opj_clock(); 	 
 	/*----------------MCT-------------------*/
 	/* FIXME _ProfStart(PGROUP_MCT); */
 	if
@@ -2656,11 +2666,11 @@ opj_bool tcd_decode_tile_v2(
 		return OPJ_FALSE;
 	}
 	/* FIXME _ProfStop(PGROUP_MCT); */
-
+	l_time = opj_clock() - l_time;
+	fprintf(stdout,"[INFO] - inverse mct took %f s\n", l_time);
+	
 	/* FIXME _ProfStart(PGROUP_DC_SHIFT); */
-
-      
-	double l_time = opj_clock(); 	 
+	l_time = opj_clock(); 	 
 	/* Change to GPU */
 	if
 		(! gpu_dc_level_shift_decode(p_tcd))
