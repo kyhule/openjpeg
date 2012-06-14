@@ -3,7 +3,8 @@
 #define __GPU_H
 
 #define MAX_THREADS_PER_BLOCK 512
-
+#define MAX_THREADS_HEIGHT 16
+#define MAX_THREADS_WIDTH 16
 /**
 Perform Inverse DC Level Shift on the GPU
 @param p_tcd_v2 TCD Handle

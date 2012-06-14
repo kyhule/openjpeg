@@ -1,7 +1,6 @@
 #include<stdio.h>
 #include<malloc.h>
 #include<cuda.h>
-
 #include "opj_includes.h"
 
 __global__ void kernel_dc_level_shift(int *d_current_ptr, int m_dc_level_shift, int min, int max, int stride, int height, int width, int qmfbid, int size) {
@@ -27,6 +26,28 @@ __global__ void kernel_dc_level_shift(int *d_current_ptr, int m_dc_level_shift, 
 			d_current_ptr[threadID] = value;
 		}
 	}
+}
+
+__global__ void kernel_v4dwt_interleave_h(float *d_tilec_data, float4 *d_h_wavelet, int h_wavelet_sn, int h_wavelet_dn, int h_wavelet_cas, unsigned int w, unsigned int buffsize, unsigned int rw) {
+
+	unsigned int i = (blockIdx.x * blockDim.x) + threadIdx.x;
+	unsigned int j = (blockIdx.y * blockDim.y) + threadIdx.y;
+	if(j < h_wavelet_sn) {
+		d_h_wavelet[i*rw+(j*2)].x = d_tilec_data[i*4*w + j];
+		d_h_wavelet[i*rw+(j*2)].y = d_tilec_data[(((4*i) + 1)*w) + j];
+		d_h_wavelet[i*rw+(j*2)].z = d_tilec_data[(((4*i) + 2)*w) + j];
+		d_h_wavelet[i*rw+(j*2)].w = d_tilec_data[(((4*i) + 3)*w) + j];    
+ 
+	} else { 
+		int k = j - h_wavelet_sn;
+		d_h_wavelet[i*rw+(k*2 + 1)].x = d_tilec_data[i*4*w + j];
+		d_h_wavelet[i*rw+(k*2 + 1)].y = d_tilec_data[(((4*i) + 1)*w) + j];
+		d_h_wavelet[i*rw+(k*2 + 1)].z = d_tilec_data[(((4*i) + 2)*w) + j];
+		d_h_wavelet[i*rw+(k*2 + 1)].w = d_tilec_data[(((4*i) + 3)*w) + j];     
+	}
+
+	/* Add boundary conditions */
+
 }
 
 
@@ -123,22 +144,56 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 	OPJ_UINT32 rw = res->x1 - res->x0;	/* width of the resolution level computed */
 	OPJ_UINT32 rh = res->y1 - res->y0;	/* height of the resolution level computed */
 	OPJ_UINT32 w = tilec->x1 - tilec->x0;
-	printf("[GPU_DEBUG] Numres %d, rw %u, rh %u, w %u, height %u\n",numres,rw,rh,w,tilec->y1 - tilec->y0);
 	
 	OPJ_UINT32 bufsize = (tilec->x1 - tilec->x0) * (tilec->y1 - tilec->y0);
-	OPJ_FLOAT32 * restrict aj = (OPJ_FLOAT32 *) tilec->data;
+	OPJ_FLOAT32 *aj = (OPJ_FLOAT32 *) tilec->data;
 	
 	OPJ_FLOAT32 *d_tilec_data;
 	cudaMalloc((OPJ_FLOAT32 **)&d_tilec_data, sizeof(OPJ_FLOAT32)*bufsize);
 	cudaMemcpy(d_tilec_data, aj, sizeof(OPJ_FLOAT32)*bufsize, cudaMemcpyHostToDevice);
 	
-	int wavelet_size = dwt_max_wavelet_size_v2(res, numres);
+	int wavelet_size = dwt_max_wavelet_size_v2(res, numres) + 5;
 
-	float4 *d_h_wavelet; 
-	cudaMalloc((float4 **)&d_h_wavelet, sizeof(float4)*wavelet_size);
 	
-	float4 *d_w_wavelet; 
-	cudaMalloc((float4 **)&d_w_wavelet, sizeof(float4)*wavelet_size);
+	int h_wavelet_sn, h_wavelet_dn, h_wavelet_cas;
+	int v_wavelet_sn, v_wavelet_dn, v_wavelet_cas;
+
 	
+	while( --numres) {
+
+		h_wavelet_sn = rw;
+		v_wavelet_sn = rh;
+
+		++res;
+
+		rw = res->x1 - res->x0;	/* width of the resolution level computed */
+		rh = res->y1 - res->y0;	/* height of the resolution level computed */
+
+
+		h_wavelet_dn = rw - h_wavelet_sn;
+		h_wavelet_cas = res->x0 % 2;
+		
+		OPJ_UINT32 size_h = ceil(rh/4.0);
+		OPJ_UINT32 size_w = rw;
+
+		float4 *d_h_wavelet; 
+		cudaMalloc((float4 **)&d_h_wavelet, sizeof(float4)*size_h*size_w);
+		
+		dim3 threads(MAX_THREADS_HEIGHT, MAX_THREADS_WIDTH, 1);
+ 
+		dim3 grid(
+			ceil(size_h/((float)(MAX_THREADS_HEIGHT))), 
+			ceil(size_w/((float)(MAX_THREADS_WIDTH))),
+			1
+		);
+
+		cudaThreadSynchronize();
+		kernel_v4dwt_interleave_h<<<grid, threads, 0>>>(d_tilec_data, d_h_wavelet, h_wavelet_sn, h_wavelet_dn, h_wavelet_cas, w, bufsize, rw);
+		cudaThreadSynchronize();
+
+		/* FIXME Add and Fuse v4dwt_decode and v4dwt_interleave_h with above kernel */
+		
+	}
+
 	return OPJ_TRUE;
 }
