@@ -1,7 +1,11 @@
 #include<stdio.h>
-#include<malloc.h>
 #include<cuda.h>
 #include "opj_includes.h"
+
+
+static const float K      = 1.230174105f; /*  10078 */
+static const float c13318 = 1.625732422f;
+
 
 __global__ void kernel_dc_level_shift(int *d_current_ptr, int m_dc_level_shift, int min, int max, int stride, int height, int width, int qmfbid, int size) {
 
@@ -28,25 +32,25 @@ __global__ void kernel_dc_level_shift(int *d_current_ptr, int m_dc_level_shift, 
 	}
 }
 
-__global__ void kernel_v4dwt_interleave_h(float *d_tilec_data, float4 *d_h_wavelet, int h_wavelet_sn, int h_wavelet_dn, int h_wavelet_cas, unsigned int w, unsigned int buffsize, unsigned int rw) {
+__global__ void kernel_v4dwt_interleave_h(float *d_tilec_data, float4 *d_h_wavelet, int h_wavelet_sn, int h_wavelet_dn, int h_wavelet_cas, unsigned int w, unsigned int buffsize, unsigned int rw, const float const1, const float const2) {
 
 	unsigned int i = (blockIdx.x * blockDim.x) + threadIdx.x;
 	unsigned int j = (blockIdx.y * blockDim.y) + threadIdx.y;
+
 	if(j < h_wavelet_sn) {
-		d_h_wavelet[i*rw+(j*2)].x = d_tilec_data[i*4*w + j];
-		d_h_wavelet[i*rw+(j*2)].y = d_tilec_data[(((4*i) + 1)*w) + j];
-		d_h_wavelet[i*rw+(j*2)].z = d_tilec_data[(((4*i) + 2)*w) + j];
-		d_h_wavelet[i*rw+(j*2)].w = d_tilec_data[(((4*i) + 3)*w) + j];    
- 
+		d_h_wavelet[i*rw+(j*2)].x = const1 * d_tilec_data[i*4*w + j];
+		d_h_wavelet[i*rw+(j*2)].y = const1 * d_tilec_data[(((4*i) + 1)*w) + j];
+		d_h_wavelet[i*rw+(j*2)].z = const1 * d_tilec_data[(((4*i) + 2)*w) + j];
+		d_h_wavelet[i*rw+(j*2)].w = const1 * d_tilec_data[(((4*i) + 3)*w) + j];    
+
 	} else { 
 		int k = j - h_wavelet_sn;
-		d_h_wavelet[i*rw+(k*2 + 1)].x = d_tilec_data[i*4*w + j];
-		d_h_wavelet[i*rw+(k*2 + 1)].y = d_tilec_data[(((4*i) + 1)*w) + j];
-		d_h_wavelet[i*rw+(k*2 + 1)].z = d_tilec_data[(((4*i) + 2)*w) + j];
-		d_h_wavelet[i*rw+(k*2 + 1)].w = d_tilec_data[(((4*i) + 3)*w) + j];     
+		d_h_wavelet[i*rw+(k*2 + 1)].x = const2 * d_tilec_data[i*4*w + j];
+		d_h_wavelet[i*rw+(k*2 + 1)].y = const2 * d_tilec_data[(((4*i) + 1)*w) + j];
+		d_h_wavelet[i*rw+(k*2 + 1)].z = const2 * d_tilec_data[(((4*i) + 2)*w) + j];
+		d_h_wavelet[i*rw+(k*2 + 1)].w = const2 * d_tilec_data[(((4*i) + 3)*w) + j];     
+	
 	}
-
-	/* Add boundary conditions */
 
 }
 
@@ -158,7 +162,9 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 	int h_wavelet_sn, h_wavelet_dn, h_wavelet_cas;
 	int v_wavelet_sn, v_wavelet_dn, v_wavelet_cas;
 
-	
+	float const_decode_step1_1; 
+	float const_decode_step1_2; 
+
 	while( --numres) {
 
 		h_wavelet_sn = rw;
@@ -168,7 +174,6 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 
 		rw = res->x1 - res->x0;	/* width of the resolution level computed */
 		rh = res->y1 - res->y0;	/* height of the resolution level computed */
-
 
 		h_wavelet_dn = rw - h_wavelet_sn;
 		h_wavelet_cas = res->x0 % 2;
@@ -187,12 +192,24 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 			1
 		);
 
-		cudaThreadSynchronize();
-		kernel_v4dwt_interleave_h<<<grid, threads, 0>>>(d_tilec_data, d_h_wavelet, h_wavelet_sn, h_wavelet_dn, h_wavelet_cas, w, bufsize, rw);
-		cudaThreadSynchronize();
+		if(h_wavelet_cas == 0) { 
+			const_decode_step1_1 = K;
+			const_decode_step1_2 = c13318;
+		} else { 
+			const_decode_step1_1 = c13318;
+			const_decode_step1_2 = K;
+		}
 
-		/* FIXME Add and Fuse v4dwt_decode and v4dwt_interleave_h with above kernel */
+		cudaThreadSynchronize();
+		kernel_v4dwt_interleave_h<<<grid, threads, 0>>>(d_tilec_data, d_h_wavelet, h_wavelet_sn, h_wavelet_dn, h_wavelet_cas, w, bufsize, rw, const_decode_step1_1, const_decode_step1_2);
+		cudaThreadSynchronize();
 		
+		cudaFree(d_h_wavelet);
+		cudaFree(d_tilec_data);
+	
+		/* FIXME Kernels for v4dwt_decode_step2 and v4dwt_decode_interleave_v */
+	
+		break;
 	}
 
 	return OPJ_TRUE;
