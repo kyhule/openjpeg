@@ -47,6 +47,253 @@ __global__ void kernel_dc_level_shift(int *d_current_ptr, int m_dc_level_shift, 
 		}
 	}
 }
+__global__ void kernel_v4dwt_h_global_cas1(float *d_tilec_data, int h_wavelet_sn, int h_wavelet_dn, int h_wavelet_cas, unsigned int w, unsigned int buffsize, unsigned int rw, const float const1, const float const2, float4 f4_dwt_alpha, float4 f4_dwt_beta, float4 f4_dwt_gamma, float4 f4_dwt_delta, float4 *d_wavelet) {
+
+	unsigned int i = blockIdx.x;
+	unsigned int j = threadIdx.x; 
+	
+	int offset = 4*i*rw; 
+	int iterations = ceil(rw/((float)512.0));
+	int count = 0;
+	
+	for(count = 0; count < iterations; count++) {
+		if(j < rw) { 
+			if(j < h_wavelet_sn) {
+				d_wavelet[offset + ((2*j)+1)].x = const1 * d_tilec_data[i*4*w + j];
+				d_wavelet[offset + ((2*j)+1)].y = const1 * d_tilec_data[(((4*i) + 1)*w) + j];
+				d_wavelet[offset + ((2*j)+1)].z = const1 * d_tilec_data[(((4*i) + 2)*w) + j];
+				d_wavelet[offset + ((2*j)+1)].w = const1 * d_tilec_data[(((4*i) + 3)*w) + j];    
+			} else if(j < h_wavelet_sn + h_wavelet_dn){ 
+				int p = j - h_wavelet_sn;
+				d_wavelet[offset + p*2].x = const2 * d_tilec_data[i*4*w + j];
+				d_wavelet[offset + p*2].y = const2 * d_tilec_data[(((4*i) + 1)*w) + j];
+				d_wavelet[offset + p*2].z = const2 * d_tilec_data[(((4*i) + 2)*w) + j];
+				d_wavelet[offset + p*2].w = const2 * d_tilec_data[(((4*i) + 3)*w) + j];     
+			}
+		}
+		j+=512;
+	}
+	__syncthreads();
+
+	int a = 1;
+	int b = 0;
+
+	int k, m;
+
+	// start at 0/2 case 
+	k = h_wavelet_sn; 
+	m = h_wavelet_dn - a;
+	j = threadIdx.x;
+	for(count = 0; count < iterations; count++) {
+		if(j < rw) { 
+			if(j%2==1) {
+				if(j < 2*m) { 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + ((d_wavelet[offset+j-1] + d_wavelet[offset+j+1])*f4_dwt_delta);
+				} else if(j < 2*k) { 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + (d_wavelet[2*m]*(f4_dwt_delta + f4_dwt_delta));
+				}
+			}
+		}
+		j+=512;
+	}
+	__syncthreads();
+	
+
+	// start at 1/1 case 
+	k = h_wavelet_dn;
+	m = h_wavelet_sn - b;
+	j = threadIdx.x;
+	for(count = 0; count < iterations; count++) {
+		if(j < rw) { 
+			if(j%2 == 0) { 
+				if(j > 0 && j < 2*m) { 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + ((d_wavelet[offset+j-1] + d_wavelet[offset+j+1])*f4_dwt_gamma);
+				} else if(j == 0){ 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + ((d_wavelet[offset+j+1] + d_wavelet[offset+j+1])*f4_dwt_gamma);
+				} else if(j < 2*k){
+					d_wavelet[offset+j] = d_wavelet[offset+j] + (d_wavelet[2*m-1]*(f4_dwt_gamma + f4_dwt_gamma)); 
+				}	
+			}
+		}
+		j+=512;
+	}
+	__syncthreads();
+
+	// start at 0/2 case 
+	k = h_wavelet_sn; 
+	m = h_wavelet_dn - a;
+	j = threadIdx.x;
+	for(count = 0; count < iterations; count++) {
+		if(j < rw) { 
+			if(j%2==1) {
+				if(j < 2*m) { 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + ((d_wavelet[offset+j-1] + d_wavelet[offset+j+1])*f4_dwt_beta);
+				} else if(j < 2*k) { 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + (d_wavelet[2*m]*(f4_dwt_beta + f4_dwt_beta));
+				}
+			}
+		}
+		j+=512;
+	}
+	__syncthreads();
+	
+
+	// start at 1/1 case 
+	k = h_wavelet_dn;
+	m = h_wavelet_sn - b;
+	j = threadIdx.x;
+	for(count = 0; count < iterations; count++) {
+		if(j < rw) { 
+			if(j%2 == 0) { 
+				if(j > 0 && j < 2*m) { 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + ((d_wavelet[offset+j-1] + d_wavelet[offset+j+1])*f4_dwt_alpha);
+				} else if(j == 0){ 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + ((d_wavelet[offset+j+1] + d_wavelet[offset+j+1])*f4_dwt_alpha);
+				} else if(j < 2*k){
+					d_wavelet[offset+j] = d_wavelet[offset+j] + (d_wavelet[2*m-1]*(f4_dwt_alpha + f4_dwt_alpha)); 
+				}	
+			}
+		}
+		j+=512;
+	}
+	__syncthreads();
+
+
+	j = threadIdx.x;
+	for(count = 0; count < iterations; count++) {
+		if(j < rw) { 
+			d_tilec_data[i*4*w + j] = d_wavelet[offset+j].x;
+			d_tilec_data[(((4*i) + 1)*w) + j] = d_wavelet[offset+j].y;
+			d_tilec_data[(((4*i) + 2)*w) + j] = d_wavelet[offset+j].z;
+			d_tilec_data[(((4*i) + 3)*w) + j] = d_wavelet[offset+j].w;
+		}
+		j+=512; 
+	}
+}
+
+__global__ void kernel_v4dwt_h_global_cas0(float *d_tilec_data, int h_wavelet_sn, int h_wavelet_dn, int h_wavelet_cas, unsigned int w, unsigned int buffsize, unsigned int rw, const float const1, const float const2, float4 f4_dwt_alpha, float4 f4_dwt_beta, float4 f4_dwt_gamma, float4 f4_dwt_delta, float4 *d_wavelet) {
+
+	unsigned int i = blockIdx.x;
+	unsigned int j = threadIdx.x; 
+	
+	int offset = 4*i*rw; 
+	int iterations = ceil(rw/((float)512.0));
+	int count = 0;
+	
+	for(count = 0; count < iterations; count++) {
+		if(j < rw) { 
+			if(j < h_wavelet_sn) {
+				d_wavelet[offset + 2*j].x = const1 * d_tilec_data[i*4*w + j];
+				d_wavelet[offset + 2*j].y = const1 * d_tilec_data[(((4*i) + 1)*w) + j];
+				d_wavelet[offset + 2*j].z = const1 * d_tilec_data[(((4*i) + 2)*w) + j];
+				d_wavelet[offset + 2*j].w = const1 * d_tilec_data[(((4*i) + 3)*w) + j];    
+			} else if(j < h_wavelet_sn + h_wavelet_dn){ 
+				int p = j - h_wavelet_sn;
+				d_wavelet[offset + (p*2 + 1)].x = const2 * d_tilec_data[i*4*w + j];
+				d_wavelet[offset + (p*2 + 1)].y = const2 * d_tilec_data[(((4*i) + 1)*w) + j];
+				d_wavelet[offset + (p*2 + 1)].z = const2 * d_tilec_data[(((4*i) + 2)*w) + j];
+				d_wavelet[offset + (p*2 + 1)].w = const2 * d_tilec_data[(((4*i) + 3)*w) + j];     
+			}
+		}		
+		j+=512;
+	}
+	__syncthreads();
+
+	
+	int a = 0;
+	int b = 1;
+
+	int k, m;
+
+	// start at 1/1 case 
+	k = h_wavelet_sn;
+	m = h_wavelet_dn - a;
+	j = threadIdx.x; 
+	for(count =  0; count < iterations; count++) { 
+		if(j < rw) { 
+			if(j%2 == 0) { 
+				if(j > 0 && j < 2*m) { 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + ((d_wavelet[offset+j-1] + d_wavelet[offset+j+1])*f4_dwt_delta);
+				} else if(j == 0){ 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + ((d_wavelet[offset+j+1] + d_wavelet[offset+j+1])*f4_dwt_delta);
+				} else if(j < 2*k){
+					d_wavelet[offset+j] = d_wavelet[offset+j] + (d_wavelet[2*m-1]*(f4_dwt_delta + f4_dwt_delta)); 
+				}
+			}
+		}
+		j+=512;
+	}
+	__syncthreads();
+
+	// start at 0/2 case 
+	k = h_wavelet_dn; 
+	m = h_wavelet_sn - b;
+	j = threadIdx.x;
+	for(count = 0; count < iterations; count++) { 
+		if(j < rw) { 
+			if(j%2==1) {
+				if(j < 2*m) { 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + ((d_wavelet[offset+j-1] + d_wavelet[offset+j+1])*f4_dwt_gamma);
+				} else if(j < 2*k) { 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + (d_wavelet[2*m]*(f4_dwt_gamma + f4_dwt_gamma));
+				}
+			}
+		}
+		j+=512; 
+	}
+
+	__syncthreads();
+	
+	// start at 1/1 case 
+	k = h_wavelet_sn;
+	m = h_wavelet_dn - a;
+	j = threadIdx.x;
+	for(count =  0; count < iterations; count++) { 
+		if(j < rw) { 
+			if(j%2 == 0) { 
+				if(j > 0 && j < 2*m) { 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + ((d_wavelet[offset+j-1] + d_wavelet[offset+j+1])*f4_dwt_beta);
+				} else if(j == 0){ 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + ((d_wavelet[offset+j+1] + d_wavelet[offset+j+1])*f4_dwt_beta);
+				} else if(j < 2*k){
+					d_wavelet[offset+j] = d_wavelet[offset+j] + (d_wavelet[2*m-1]*(f4_dwt_beta + f4_dwt_beta)); 
+				}
+			}
+		}
+		j+=512;
+	}
+	__syncthreads();
+
+	// start at 0/2 case 
+	k = h_wavelet_dn; 
+	m = h_wavelet_sn - b;
+	j = threadIdx.x;
+	for(count = 0; count < iterations; count++) { 
+		if(j < rw) { 
+			if(j%2==1) {
+				if(j < 2*m) { 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + ((d_wavelet[offset+j-1] + d_wavelet[offset+j+1])*f4_dwt_alpha);
+				} else if(j < 2*k) { 
+					d_wavelet[offset+j] = d_wavelet[offset+j] + (d_wavelet[2*m]*(f4_dwt_alpha + f4_dwt_alpha));
+				}
+			}
+		}
+		j+=512; 
+	}
+	__syncthreads();
+	
+
+	j = threadIdx.x;
+	for(count = 0; count < iterations; count++) {
+		if(j < rw) { 
+			d_tilec_data[i*4*w + j] = d_wavelet[offset+j].x;
+			d_tilec_data[(((4*i) + 1)*w) + j] = d_wavelet[offset+j].y;
+			d_tilec_data[(((4*i) + 2)*w) + j] = d_wavelet[offset+j].z;
+			d_tilec_data[(((4*i) + 3)*w) + j] = d_wavelet[offset+j].w;
+		}
+		j+=512; 
+	}
+}
 __global__ void kernel_v4dwt_h_cas1(float *d_tilec_data, int h_wavelet_sn, int h_wavelet_dn, int h_wavelet_cas, unsigned int w, unsigned int buffsize, unsigned int rw, const float const1, const float const2, float4 f4_dwt_alpha, float4 f4_dwt_beta, float4 f4_dwt_gamma, float4 f4_dwt_delta) {
 
 	unsigned int i = blockIdx.x;
@@ -61,7 +308,7 @@ __global__ void kernel_v4dwt_h_cas1(float *d_tilec_data, int h_wavelet_sn, int h
 		shared_h_wavelet[((2*j)+1)].y = const1 * d_tilec_data[(((4*i) + 1)*w) + j];
 		shared_h_wavelet[((2*j)+1)].z = const1 * d_tilec_data[(((4*i) + 2)*w) + j];
 		shared_h_wavelet[((2*j)+1)].w = const1 * d_tilec_data[(((4*i) + 3)*w) + j];    
-	} else { 
+	} else if(j < h_wavelet_sn + h_wavelet_dn){ 
 		int p = j - h_wavelet_sn;
 		shared_h_wavelet[p*2].x = const2 * d_tilec_data[i*4*w + j];
 		shared_h_wavelet[p*2].y = const2 * d_tilec_data[(((4*i) + 1)*w) + j];
@@ -134,7 +381,7 @@ __global__ void kernel_v4dwt_h_cas1(float *d_tilec_data, int h_wavelet_sn, int h
 	d_tilec_data[i*4*w + j] = shared_h_wavelet[j].x;
 	d_tilec_data[(((4*i) + 1)*w) + j] = shared_h_wavelet[j].y;
 	d_tilec_data[(((4*i) + 2)*w) + j] = shared_h_wavelet[j].z;
-	d_tilec_data[(((4*i) + 3)*w) + j] = shared_h_wavelet[j].w;
+	d_tilec_data[(((4*i) + 3)*w) + j] = shared_h_wavelet[j].w; 
 }
 
 __global__ void kernel_v4dwt_h_cas0(float *d_tilec_data, int h_wavelet_sn, int h_wavelet_dn, int h_wavelet_cas, unsigned int w, unsigned int buffsize, unsigned int rw, const float const1, const float const2, float4 f4_dwt_alpha, float4 f4_dwt_beta, float4 f4_dwt_gamma, float4 f4_dwt_delta) {
@@ -165,7 +412,7 @@ __global__ void kernel_v4dwt_h_cas0(float *d_tilec_data, int h_wavelet_sn, int h
 
 	int k, m;
 
-	/* start at 1/1 case */
+	// start at 1/1 case 
 	k = h_wavelet_sn;
 	m = h_wavelet_dn - a;
 	if(j%2 == 0) { 
@@ -180,7 +427,7 @@ __global__ void kernel_v4dwt_h_cas0(float *d_tilec_data, int h_wavelet_sn, int h
 	}
 	__syncthreads();
 
-	/* start at 0/2 case */
+	// start at 0/2 case 
 	k = h_wavelet_dn; 
 	m = h_wavelet_sn - b;
 	if(j%2==1) {
@@ -193,7 +440,7 @@ __global__ void kernel_v4dwt_h_cas0(float *d_tilec_data, int h_wavelet_sn, int h
 
 	__syncthreads();
 
-	/* start at 1/1 case */
+	// start at 1/1 case
 	k = h_wavelet_sn;
 	m = h_wavelet_dn - a;
 	if(j%2 == 0) { 
@@ -207,7 +454,7 @@ __global__ void kernel_v4dwt_h_cas0(float *d_tilec_data, int h_wavelet_sn, int h
 	}
 	__syncthreads();
 
-	/* start at 0/2 case */
+	// start at 0/2 case 
 	k = h_wavelet_dn; 
 	m = h_wavelet_sn - b;
 	if(j%2==1) {
@@ -218,13 +465,260 @@ __global__ void kernel_v4dwt_h_cas0(float *d_tilec_data, int h_wavelet_sn, int h
 		}
 
 	}
-	__syncthreads();
+	__syncthreads(); 
 	
 	d_tilec_data[i*4*w + j] = shared_h_wavelet[j].x;
 	d_tilec_data[(((4*i) + 1)*w) + j] = shared_h_wavelet[j].y;
 	d_tilec_data[(((4*i) + 2)*w) + j] = shared_h_wavelet[j].z;
 	d_tilec_data[(((4*i) + 3)*w) + j] = shared_h_wavelet[j].w;
 }
+
+__global__ void kernel_v4dwt_v_global_cas1(float *d_tilec_data, int v_wavelet_sn, int v_wavelet_dn, int v_wavelet_cas, unsigned int w, unsigned int buffsize, unsigned int rh, const float const1, const float const2, float4 f4_dwt_alpha, float4 f4_dwt_beta, float4 f4_dwt_gamma, float4 f4_dwt_delta, float4 *d_wavelet) {
+
+	unsigned int i = threadIdx.x; // 0 to rh
+	unsigned int j = blockIdx.x; // 0 to rw/4
+
+	int offset = 4*j*rh; 
+	int iterations = ceil(rh/((float)512.0));
+	int count = 0;
+	
+	for(count = 0; count < iterations; count++) {
+		if(i < rh)  { 
+			if(i < v_wavelet_sn) {
+				d_wavelet[offset + ((2*i)+1)].x = const1 * d_tilec_data[i*w + (4*j)];
+				d_wavelet[offset + ((2*i)+1)].y = const1 * d_tilec_data[i*w + (4*j) + 1];
+				d_wavelet[offset + ((2*i)+1)].z = const1 * d_tilec_data[i*w + (4*j) + 2];
+				d_wavelet[offset + ((2*i)+1)].w = const1 * d_tilec_data[i*w + (4*j) + 3];    
+			} else { 
+				int p = i - v_wavelet_sn;
+				d_wavelet[offset + p*2].x = const2 * d_tilec_data[i*w + (4*j)];
+				d_wavelet[offset + p*2].y = const2 * d_tilec_data[i*w + (4*j) + 1];
+				d_wavelet[offset + p*2].z = const2 * d_tilec_data[i*w + (4*j) + 2];
+				d_wavelet[offset + p*2].w = const2 * d_tilec_data[i*w + (4*j) + 3];     
+			}
+		}
+		i+=512;
+	}
+	__syncthreads();
+
+	int a = 1;
+	int b = 0;
+
+	int k, m;
+
+	// start at 0/2 case
+	k = v_wavelet_sn;
+	m = v_wavelet_dn - a;
+	i = threadIdx.x;
+	for(count = 0; count < iterations; count++) { 
+		if(i < rh) { 
+			if(i%2==1) {
+				if(i < 2*m) { 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + ((d_wavelet[offset+i-1] + d_wavelet[offset+i+1])*f4_dwt_delta);
+				} else if(i < 2*k) { 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + (d_wavelet[2*m]*(f4_dwt_delta + f4_dwt_delta));
+				}
+			}
+		}
+		i+=512;
+	}
+	__syncthreads();
+
+	
+	// start at 1/1 case 
+	k = v_wavelet_dn;
+	m = v_wavelet_sn - b;
+	i = threadIdx.x;
+	for(count = 0; count < iterations; count++) { 
+		if(i < rh) { 
+			if(i%2 == 0) { 
+				if(i > 0 && i < 2*m) { 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + ((d_wavelet[offset+i-1] + d_wavelet[offset+i+1])*f4_dwt_gamma);
+				} else if(i == 0){ 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + ((d_wavelet[offset+i+1] + d_wavelet[offset+i+1])*f4_dwt_gamma);
+				} else if(i < 2*k){
+					d_wavelet[offset+i] = d_wavelet[offset+i] + (d_wavelet[2*m-1]*(f4_dwt_gamma + f4_dwt_gamma)); 
+				}
+			}
+		}
+		i+=512;
+	}
+	__syncthreads();
+
+	// start at 0/2 case
+	k = v_wavelet_sn;
+	m = v_wavelet_dn - a;
+	i = threadIdx.x;
+	for(count = 0; count < iterations; count++) { 
+		if(i < rh) { 
+			if(i%2==1) {
+				if(i < 2*m) { 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + ((d_wavelet[offset+i-1] + d_wavelet[offset+i+1])*f4_dwt_beta);
+				} else if(i < 2*k) { 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + (d_wavelet[2*m]*(f4_dwt_beta + f4_dwt_beta));
+				}
+			}
+		}
+		i+=512;
+	}
+	__syncthreads();
+
+	
+	// start at 1/1 case 
+	k = v_wavelet_dn;
+	m = v_wavelet_sn - b;
+	i = threadIdx.x;
+	for(count = 0; count < iterations; count++) { 
+		if(i < rh) { 
+			if(i%2 == 0) { 
+				if(i > 0 && i < 2*m) { 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + ((d_wavelet[offset+i-1] + d_wavelet[offset+i+1])*f4_dwt_alpha);
+				} else if(i == 0){ 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + ((d_wavelet[offset+i+1] + d_wavelet[offset+i+1])*f4_dwt_alpha);
+				} else if(i < 2*k){
+					d_wavelet[offset+i] = d_wavelet[offset+i] + (d_wavelet[2*m-1]*(f4_dwt_alpha + f4_dwt_alpha)); 
+				}
+			}
+		}
+		i+=512;
+	}
+	__syncthreads();
+
+	i = threadIdx.x;
+	for(count = 0; count < iterations; count++) {
+		if(i < rh) { 
+			d_tilec_data[i*w + (4*j)] = d_wavelet[offset+i].x;
+			d_tilec_data[i*w + (4*j) + 1] = d_wavelet[offset+i].y;
+			d_tilec_data[i*w + (4*j) + 2] = d_wavelet[offset+i].z;
+			d_tilec_data[i*w + (4*j) + 3] = d_wavelet[offset+i].w; 
+		}
+		i+=512;
+	}
+}
+
+__global__ void kernel_v4dwt_v_global_cas0(float *d_tilec_data, int v_wavelet_sn, int v_wavelet_dn, int v_wavelet_cas, unsigned int w, unsigned int buffsize, unsigned int rh, const float const1, const float const2, float4 f4_dwt_alpha, float4 f4_dwt_beta, float4 f4_dwt_gamma, float4 f4_dwt_delta, float4 *d_wavelet) {
+
+	unsigned int i = threadIdx.x; // 0 to rh
+	unsigned int j = blockIdx.x; // 0 to rw/4
+
+ 	int offset = 4*j*rh; 
+	int iterations = ceil(rh/((float)512.0));
+	int count = 0;
+	
+	for(count = 0; count < iterations; count++) {
+		if(i < rh)  { 
+			if(i < v_wavelet_sn) {
+				d_wavelet[offset + 2*i].x = const1 * d_tilec_data[i*w + (4*j)];
+				d_wavelet[offset + 2*i].y = const1 * d_tilec_data[i*w + (4*j) + 1];
+				d_wavelet[offset + 2*i].z = const1 * d_tilec_data[i*w + (4*j) + 2];
+				d_wavelet[offset + 2*i].w = const1 * d_tilec_data[i*w + (4*j) + 3];    
+			} else { 
+				int p = i - v_wavelet_sn;
+				d_wavelet[offset + (p*2 + 1)].x = const2 * d_tilec_data[i*w + (4*j)];
+				d_wavelet[offset + (p*2 + 1)].y = const2 * d_tilec_data[i*w + (4*j) + 1];
+				d_wavelet[offset + (p*2 + 1)].z = const2 * d_tilec_data[i*w + (4*j) + 2];
+				d_wavelet[offset + (p*2 + 1)].w = const2 * d_tilec_data[i*w + (4*j) + 3];     
+			}
+		}
+		i+=512; 
+	}
+	__syncthreads();
+
+	int a = 0;
+	int b = 1;
+
+	int k, m;
+
+
+	/* start at 1/1 case */
+	k = v_wavelet_sn;
+	m = v_wavelet_dn - a;
+	i = threadIdx.x;
+	for(count = 0; count < iterations; count++) {
+		if(i < rh)  { 
+			if(i%2 == 0) { 
+				if(i > 0 && i < 2*m) { 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + ((d_wavelet[offset+i-1] + d_wavelet[offset+i+1])*f4_dwt_delta);
+				} else if(i == 0){ 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + ((d_wavelet[offset+i+1] + d_wavelet[offset+i+1])*f4_dwt_delta);
+				} else if(i < 2*k){
+					d_wavelet[offset+i] = d_wavelet[offset+i] + (d_wavelet[2*m-1]*(f4_dwt_delta + f4_dwt_delta)); 
+				}		
+			}
+		}
+		i+=512;
+	}
+	__syncthreads();
+
+	/* start at 0/2 case */
+	k = v_wavelet_dn; 
+	m = v_wavelet_sn - b;
+	i = threadIdx.x;
+	for(count = 0; count < iterations; count++) {
+		if(i < rh)  { 
+			if(i%2==1) {
+				if(i < 2*m) { 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + ((d_wavelet[offset+i-1] + d_wavelet[offset+i+1])*f4_dwt_gamma);
+				} else if(i < 2*k) { 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + (d_wavelet[2*m]*(f4_dwt_gamma + f4_dwt_gamma));
+				}
+			}
+		}
+		i+=512; 
+	}
+	__syncthreads();
+
+
+	/* start at 1/1 case */
+	k = v_wavelet_sn;
+	m = v_wavelet_dn - a;
+	i = threadIdx.x;
+	for(count = 0; count < iterations; count++) {
+		if(i < rh)  { 
+			if(i%2 == 0) { 
+				if(i > 0 && i < 2*m) { 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + ((d_wavelet[offset+i-1] + d_wavelet[offset+i+1])*f4_dwt_beta);
+				} else if(i == 0){ 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + ((d_wavelet[offset+i+1] + d_wavelet[offset+i+1])*f4_dwt_beta);
+				} else if(i < 2*k){
+					d_wavelet[offset+i] = d_wavelet[offset+i] + (d_wavelet[2*m-1]*(f4_dwt_beta + f4_dwt_beta)); 
+				}		
+			}
+		}
+		i+=512;
+	}
+	__syncthreads();
+
+	/* start at 0/2 case */
+	k = v_wavelet_dn; 
+	m = v_wavelet_sn - b;
+	i = threadIdx.x;
+	for(count = 0; count < iterations; count++) {
+		if(i < rh)  { 
+			if(i%2==1) {
+				if(i < 2*m) { 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + ((d_wavelet[offset+i-1] + d_wavelet[offset+i+1])*f4_dwt_alpha);
+				} else if(i < 2*k) { 
+					d_wavelet[offset+i] = d_wavelet[offset+i] + (d_wavelet[2*m]*(f4_dwt_alpha + f4_dwt_alpha));
+				}
+			}
+		}
+		i+=512; 
+	}
+	__syncthreads();
+
+	i = threadIdx.x;
+	for(count = 0; count < iterations; count++) {
+		if(i < rh)  { 
+			d_tilec_data[i*w + (4*j)] = d_wavelet[offset+i].x;
+			d_tilec_data[i*w + (4*j) + 1] = d_wavelet[offset+i].y;
+			d_tilec_data[i*w + (4*j) + 2] = d_wavelet[offset+i].z;
+			d_tilec_data[i*w + (4*j) + 3] = d_wavelet[offset+i].w; 
+		}
+		i+=512;
+	}
+}
+
 
 __global__ void kernel_v4dwt_v_cas1(float *d_tilec_data, int v_wavelet_sn, int v_wavelet_dn, int v_wavelet_cas, unsigned int w, unsigned int buffsize, const float const1, const float const2, float4 f4_dwt_alpha, float4 f4_dwt_beta, float4 f4_dwt_gamma, float4 f4_dwt_delta) {
 
@@ -506,15 +1000,18 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 	OPJ_UINT32 bufsize = (tilec->x1 - tilec->x0) * (tilec->y1 - tilec->y0);
 	OPJ_FLOAT32 *aj = (OPJ_FLOAT32 *) tilec->data;
 
-	/* DEBUG  
+	int wavelet_size = dwt_max_wavelet_size_v2(res, numres) + 5;
+
+	/* DEBUG
 	float *result = (float *)opj_malloc(sizeof(float)*bufsize); */
 	
 	OPJ_FLOAT32 *d_tilec_data;
 	cudaMalloc((OPJ_FLOAT32 **)&d_tilec_data, sizeof(OPJ_FLOAT32)*bufsize);
 	cudaMemcpy(d_tilec_data, aj, sizeof(OPJ_FLOAT32)*bufsize, cudaMemcpyHostToDevice);
-	
-	int wavelet_size = dwt_max_wavelet_size_v2(res, numres) + 5;
-	
+
+	float4 *d_wavelet; 
+	cudaMalloc((float4 **)&d_wavelet, sizeof(float4)*wavelet_size*wavelet_size);
+
 	int h_wavelet_sn, h_wavelet_dn, h_wavelet_cas;
 	int v_wavelet_sn, v_wavelet_dn, v_wavelet_cas;
 
@@ -528,10 +1025,8 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 		rw = res->x1 - res->x0;	/* width of the resolution level computed */
 		rh = res->y1 - res->y0;	/* height of the resolution level computed */
 
-		/* FIXME add for loop to the 4-decode kernels, for dimension greater than 512
-		if(rw > 512 || rh > 512) { 
-			break;
-		} */
+		/* DEBUG
+		printf("[GPU_DEBUG] rw %d, rh %d\n",rw,rh); */
 
 		h_wavelet_dn = rw - h_wavelet_sn;
 		h_wavelet_cas = res->x0 % 2;
@@ -541,60 +1036,94 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 		float4 f4_dwt_gamma = make_float4(dwt_gamma, dwt_gamma, dwt_gamma, dwt_gamma);
 		float4 f4_dwt_delta = make_float4(dwt_delta, dwt_delta, dwt_delta, dwt_delta);
 		
-		dim3 threads_h(rw, 1, 1);
-		dim3 grid_h(ceil(rh/4.0), 1, 1);
-
+	
 		cudaThreadSynchronize();
-		if(h_wavelet_cas == 0) { 
-			kernel_v4dwt_h_cas0<<<grid_h, threads_h, 0>>>(d_tilec_data, h_wavelet_sn, h_wavelet_dn, h_wavelet_cas, w, bufsize, rw, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta);
-		
-		} else { 
-			kernel_v4dwt_h_cas1<<<grid_h, threads_h, 0>>>(d_tilec_data, h_wavelet_sn, h_wavelet_dn, h_wavelet_cas, w, bufsize, rw, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta);
-
+		if(rw < 512) { 
+			dim3 threads_h(rw, 1, 1);
+			dim3 grid_h(ceil(rh/4.0), 1, 1);
+			
+			if(h_wavelet_cas == 0) { 
+				kernel_v4dwt_h_cas0<<<grid_h, threads_h, 0>>>(d_tilec_data, h_wavelet_sn, h_wavelet_dn, h_wavelet_cas, w, bufsize, rw, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta);
+			} else { 
+				kernel_v4dwt_h_cas1<<<grid_h, threads_h, 0>>>(d_tilec_data, h_wavelet_sn, h_wavelet_dn, h_wavelet_cas, w, bufsize, rw, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta);
+	
+			}
+		} else {
+			dim3 threads_h(512, 1, 1);
+			dim3 grid_h(ceil(rh/4.0), 1, 1);
+			if(h_wavelet_cas == 0) {
+				kernel_v4dwt_h_global_cas0<<<grid_h, threads_h, 0>>>(d_tilec_data, h_wavelet_sn, h_wavelet_dn, h_wavelet_cas, w, bufsize, rw, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta, d_wavelet);
+			} else { 
+				kernel_v4dwt_h_global_cas1<<<grid_h, threads_h, 0>>>(d_tilec_data, h_wavelet_sn, h_wavelet_dn, h_wavelet_cas, w, bufsize, rw, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta, d_wavelet);
+			}
 		}
 		cudaThreadSynchronize();
 
+		/* DEBUG
+		cudaError_t errorH = cudaGetLastError();  
+		printf("[GPU_DEBUG] CUDA ERROR : %s\n",cudaGetErrorString(errorH)); */
 
-		/* DEBUG v4dwt_h
+		
+		/* DEBUG v4dwt_h 
 		OPJ_INT32 j,k;
 		cudaMemcpy(result, d_tilec_data, sizeof(OPJ_FLOAT32)*bufsize, cudaMemcpyDeviceToHost);
 		cudaThreadSynchronize();
 
+		if(rw >= 512) { 
 		for(j = rh; j > 3; j -= 4) {
 			for(k = rw; --k >= 0;){
-				printf("(%d,%d,%d,%d)\n",(int)(floor(result[k])),(int)(floor(result[k+w])),(int)(floor(result[k+w*2])),(int)(floor(result[k+w*3])));
+				printf("rh %d rw %d (%d,%d,%d,%d)\n",j,k,(int)(floor(result[k])),(int)(floor(result[k+w])),(int)(floor(result[k+w*2])),(int)(floor(result[k+w*3])));
 			}
 			result+=w*4;
+		}
+		printf("NEXT ITERATION\n");
 		} */
-		
+
 		v_wavelet_dn = rh - v_wavelet_sn;
 		v_wavelet_cas = res->y0 % 2;
 
 		dim3 threads_v(rh, 1, 1);
 		dim3 grid_v(ceil(rw/4.0),1,1);
 
-
+		
 		cudaThreadSynchronize();
-		if(v_wavelet_cas == 0) { 
-			kernel_v4dwt_v_cas0<<<grid_v, threads_v, 0>>>(d_tilec_data, v_wavelet_sn, v_wavelet_dn, v_wavelet_cas, w, bufsize, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta);
+		if(rh < 512) { 
+			dim3 threads_v(rh, 1, 1);
+			dim3 grid_v(ceil(rw/4.0),1,1);
+			if(v_wavelet_cas == 0) { 
+				kernel_v4dwt_v_cas0<<<grid_v, threads_v, 0>>>(d_tilec_data, v_wavelet_sn, v_wavelet_dn, v_wavelet_cas, w, bufsize, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta);
+			} else { 
+				kernel_v4dwt_v_cas1<<<grid_v, threads_v, 0>>>(d_tilec_data, v_wavelet_sn, v_wavelet_dn, v_wavelet_cas, w, bufsize, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta);
+			}
 		} else { 
-			kernel_v4dwt_v_cas0<<<grid_v, threads_v, 0>>>(d_tilec_data, v_wavelet_sn, v_wavelet_dn, v_wavelet_cas, w, bufsize, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta);
+			dim3 threads_v(512, 1, 1);
+			dim3 grid_v(ceil(rw/4.0),1,1);
+			if(v_wavelet_cas == 0) { 
+				kernel_v4dwt_v_global_cas0<<<grid_v, threads_v, 0>>>(d_tilec_data, v_wavelet_sn, v_wavelet_dn, v_wavelet_cas, w, bufsize, rh, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta, d_wavelet);
+			} else { 
+				kernel_v4dwt_v_global_cas1<<<grid_v, threads_v, 0>>>(d_tilec_data, v_wavelet_sn, v_wavelet_dn, v_wavelet_cas, w, bufsize, rh, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta, d_wavelet);
+	
+			}
 		}
 		cudaThreadSynchronize();
 
-		/* DEBUG v4dwt_v
+		/* DEBUG
+		cudaError_t errorV = cudaGetLastError();  
+		printf("[GPU_DEBUG] CUDA ERROR : %s\n", cudaGetErrorString(errorV)); */
+
+		/* DEBUG v4dwt_v 
 		cudaMemcpy(result, d_tilec_data, sizeof(OPJ_FLOAT32)*bufsize, cudaMemcpyDeviceToHost);
 		cudaThreadSynchronize();
-
 		//OPJ_INT32 j,k;
 		for(j = rw; j > 3; j-=4) { 
 			for(k = 0; k < rh; ++k){
 				printf("{%d,%d,%d,%d}\n",(int)(floor(result[k*w])),(int)(floor(result[k*w + 1])),(int)(floor(result[k*w + 2])),(int)(floor(result[k*w + 3])));
 			}
 			result+=4;
-		} */ 
+		} */  
 
 	}
+	cudaMemcpy(aj, d_tilec_data, sizeof(OPJ_FLOAT32)*bufsize, cudaMemcpyDeviceToHost);
 	cudaFree(d_tilec_data);
 
 	return OPJ_TRUE;
