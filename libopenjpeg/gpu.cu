@@ -53,7 +53,7 @@ __global__ void kernel_v4dwt_h_global_cas1(float *d_tilec_data, int h_wavelet_sn
 	unsigned int j = threadIdx.x; 
 	
 	int offset = 4*i*rw; 
-	int iterations = ceil(rw/((float)512.0));
+	int iterations = ceil(rw/((float)THRESHOLD_SHARED_DIM));
 	int count = 0;
 	
 	for(count = 0; count < iterations; count++) {
@@ -71,7 +71,7 @@ __global__ void kernel_v4dwt_h_global_cas1(float *d_tilec_data, int h_wavelet_sn
 				d_wavelet[offset + p*2].w = const2 * d_tilec_data[(((4*i) + 3)*w) + j];     
 			}
 		}
-		j+=512;
+		j+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 
@@ -94,7 +94,7 @@ __global__ void kernel_v4dwt_h_global_cas1(float *d_tilec_data, int h_wavelet_sn
 				}
 			}
 		}
-		j+=512;
+		j+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 	
@@ -115,7 +115,7 @@ __global__ void kernel_v4dwt_h_global_cas1(float *d_tilec_data, int h_wavelet_sn
 				}	
 			}
 		}
-		j+=512;
+		j+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 
@@ -133,7 +133,7 @@ __global__ void kernel_v4dwt_h_global_cas1(float *d_tilec_data, int h_wavelet_sn
 				}
 			}
 		}
-		j+=512;
+		j+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 	
@@ -154,7 +154,7 @@ __global__ void kernel_v4dwt_h_global_cas1(float *d_tilec_data, int h_wavelet_sn
 				}	
 			}
 		}
-		j+=512;
+		j+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 
@@ -167,7 +167,7 @@ __global__ void kernel_v4dwt_h_global_cas1(float *d_tilec_data, int h_wavelet_sn
 			d_tilec_data[(((4*i) + 2)*w) + j] = d_wavelet[offset+j].z;
 			d_tilec_data[(((4*i) + 3)*w) + j] = d_wavelet[offset+j].w;
 		}
-		j+=512; 
+		j+=THRESHOLD_SHARED_DIM; 
 	}
 }
 
@@ -177,7 +177,7 @@ __global__ void kernel_v4dwt_h_global_cas0(float *d_tilec_data, int h_wavelet_sn
 	unsigned int j = threadIdx.x; 
 	
 	int offset = 4*i*rw; 
-	int iterations = ceil(rw/((float)512.0));
+	int iterations = ceil(rw/((float)THRESHOLD_SHARED_DIM));
 	int count = 0;
 	
 	for(count = 0; count < iterations; count++) {
@@ -195,7 +195,7 @@ __global__ void kernel_v4dwt_h_global_cas0(float *d_tilec_data, int h_wavelet_sn
 				d_wavelet[offset + (p*2 + 1)].w = const2 * d_tilec_data[(((4*i) + 3)*w) + j];     
 			}
 		}		
-		j+=512;
+		j+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 
@@ -221,7 +221,7 @@ __global__ void kernel_v4dwt_h_global_cas0(float *d_tilec_data, int h_wavelet_sn
 				}
 			}
 		}
-		j+=512;
+		j+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 
@@ -239,7 +239,7 @@ __global__ void kernel_v4dwt_h_global_cas0(float *d_tilec_data, int h_wavelet_sn
 				}
 			}
 		}
-		j+=512; 
+		j+=THRESHOLD_SHARED_DIM; 
 	}
 
 	__syncthreads();
@@ -260,7 +260,7 @@ __global__ void kernel_v4dwt_h_global_cas0(float *d_tilec_data, int h_wavelet_sn
 				}
 			}
 		}
-		j+=512;
+		j+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 
@@ -278,7 +278,7 @@ __global__ void kernel_v4dwt_h_global_cas0(float *d_tilec_data, int h_wavelet_sn
 				}
 			}
 		}
-		j+=512; 
+		j+=THRESHOLD_SHARED_DIM; 
 	}
 	__syncthreads();
 	
@@ -291,7 +291,7 @@ __global__ void kernel_v4dwt_h_global_cas0(float *d_tilec_data, int h_wavelet_sn
 			d_tilec_data[(((4*i) + 2)*w) + j] = d_wavelet[offset+j].z;
 			d_tilec_data[(((4*i) + 3)*w) + j] = d_wavelet[offset+j].w;
 		}
-		j+=512; 
+		j+=THRESHOLD_SHARED_DIM; 
 	}
 }
 __global__ void kernel_v4dwt_h_cas1(float *d_tilec_data, int h_wavelet_sn, int h_wavelet_dn, int h_wavelet_cas, unsigned int w, unsigned int buffsize, unsigned int rw, const float const1, const float const2, float4 f4_dwt_alpha, float4 f4_dwt_beta, float4 f4_dwt_gamma, float4 f4_dwt_delta) {
@@ -299,7 +299,7 @@ __global__ void kernel_v4dwt_h_cas1(float *d_tilec_data, int h_wavelet_sn, int h
 	unsigned int i = blockIdx.x;
 	unsigned int j = threadIdx.x; 
 
-	__shared__ float4 shared_h_wavelet[512];
+	__shared__ float4 shared_h_wavelet[THRESHOLD_SHARED_DIM];
 		
 	__syncthreads();  
 
@@ -389,7 +389,7 @@ __global__ void kernel_v4dwt_h_cas0(float *d_tilec_data, int h_wavelet_sn, int h
 	unsigned int i = blockIdx.x;
 	unsigned int j = threadIdx.x; 
 
-	__shared__ float4 shared_h_wavelet[512];
+	__shared__ float4 shared_h_wavelet[THRESHOLD_SHARED_DIM];
 		
 	__syncthreads();  
 
@@ -479,7 +479,7 @@ __global__ void kernel_v4dwt_v_global_cas1(float *d_tilec_data, int v_wavelet_sn
 	unsigned int j = blockIdx.x; // 0 to rw/4
 
 	int offset = 4*j*rh; 
-	int iterations = ceil(rh/((float)512.0));
+	int iterations = ceil(rh/((float)THRESHOLD_SHARED_DIM));
 	int count = 0;
 	
 	for(count = 0; count < iterations; count++) {
@@ -497,7 +497,7 @@ __global__ void kernel_v4dwt_v_global_cas1(float *d_tilec_data, int v_wavelet_sn
 				d_wavelet[offset + p*2].w = const2 * d_tilec_data[i*w + (4*j) + 3];     
 			}
 		}
-		i+=512;
+		i+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 
@@ -520,7 +520,7 @@ __global__ void kernel_v4dwt_v_global_cas1(float *d_tilec_data, int v_wavelet_sn
 				}
 			}
 		}
-		i+=512;
+		i+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 
@@ -541,7 +541,7 @@ __global__ void kernel_v4dwt_v_global_cas1(float *d_tilec_data, int v_wavelet_sn
 				}
 			}
 		}
-		i+=512;
+		i+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 
@@ -559,7 +559,7 @@ __global__ void kernel_v4dwt_v_global_cas1(float *d_tilec_data, int v_wavelet_sn
 				}
 			}
 		}
-		i+=512;
+		i+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 
@@ -580,7 +580,7 @@ __global__ void kernel_v4dwt_v_global_cas1(float *d_tilec_data, int v_wavelet_sn
 				}
 			}
 		}
-		i+=512;
+		i+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 
@@ -592,7 +592,7 @@ __global__ void kernel_v4dwt_v_global_cas1(float *d_tilec_data, int v_wavelet_sn
 			d_tilec_data[i*w + (4*j) + 2] = d_wavelet[offset+i].z;
 			d_tilec_data[i*w + (4*j) + 3] = d_wavelet[offset+i].w; 
 		}
-		i+=512;
+		i+=THRESHOLD_SHARED_DIM;
 	}
 }
 
@@ -602,7 +602,7 @@ __global__ void kernel_v4dwt_v_global_cas0(float *d_tilec_data, int v_wavelet_sn
 	unsigned int j = blockIdx.x; // 0 to rw/4
 
  	int offset = 4*j*rh; 
-	int iterations = ceil(rh/((float)512.0));
+	int iterations = ceil(rh/((float)THRESHOLD_SHARED_DIM));
 	int count = 0;
 	
 	for(count = 0; count < iterations; count++) {
@@ -620,7 +620,7 @@ __global__ void kernel_v4dwt_v_global_cas0(float *d_tilec_data, int v_wavelet_sn
 				d_wavelet[offset + (p*2 + 1)].w = const2 * d_tilec_data[i*w + (4*j) + 3];     
 			}
 		}
-		i+=512; 
+		i+=THRESHOLD_SHARED_DIM; 
 	}
 	__syncthreads();
 
@@ -646,7 +646,7 @@ __global__ void kernel_v4dwt_v_global_cas0(float *d_tilec_data, int v_wavelet_sn
 				}		
 			}
 		}
-		i+=512;
+		i+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 
@@ -664,7 +664,7 @@ __global__ void kernel_v4dwt_v_global_cas0(float *d_tilec_data, int v_wavelet_sn
 				}
 			}
 		}
-		i+=512; 
+		i+=THRESHOLD_SHARED_DIM; 
 	}
 	__syncthreads();
 
@@ -685,7 +685,7 @@ __global__ void kernel_v4dwt_v_global_cas0(float *d_tilec_data, int v_wavelet_sn
 				}		
 			}
 		}
-		i+=512;
+		i+=THRESHOLD_SHARED_DIM;
 	}
 	__syncthreads();
 
@@ -703,7 +703,7 @@ __global__ void kernel_v4dwt_v_global_cas0(float *d_tilec_data, int v_wavelet_sn
 				}
 			}
 		}
-		i+=512; 
+		i+=THRESHOLD_SHARED_DIM; 
 	}
 	__syncthreads();
 
@@ -715,7 +715,7 @@ __global__ void kernel_v4dwt_v_global_cas0(float *d_tilec_data, int v_wavelet_sn
 			d_tilec_data[i*w + (4*j) + 2] = d_wavelet[offset+i].z;
 			d_tilec_data[i*w + (4*j) + 3] = d_wavelet[offset+i].w; 
 		}
-		i+=512;
+		i+=THRESHOLD_SHARED_DIM;
 	}
 }
 
@@ -725,7 +725,7 @@ __global__ void kernel_v4dwt_v_cas1(float *d_tilec_data, int v_wavelet_sn, int v
 	unsigned int i = threadIdx.x; // 0 to rh
 	unsigned int j = blockIdx.x; // 0 to rw/4
 
-	__shared__ float4 shared_v_wavelet[512];
+	__shared__ float4 shared_v_wavelet[THRESHOLD_SHARED_DIM];
 		
 	__syncthreads(); 
  
@@ -817,7 +817,7 @@ __global__ void kernel_v4dwt_v_cas0(float *d_tilec_data, int v_wavelet_sn, int v
 	unsigned int i = threadIdx.x; // 0 to rh
 	unsigned int j = blockIdx.x; // 0 to rw/4
 
-	__shared__ float4 shared_v_wavelet[512];
+	__shared__ float4 shared_v_wavelet[THRESHOLD_SHARED_DIM];
 		
 	__syncthreads(); 
  
@@ -1010,7 +1010,9 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 	cudaMemcpy(d_tilec_data, aj, sizeof(OPJ_FLOAT32)*bufsize, cudaMemcpyHostToDevice);
 
 	float4 *d_wavelet; 
-	cudaMalloc((float4 **)&d_wavelet, sizeof(float4)*wavelet_size*wavelet_size);
+	if(wavelet_size > THRESHOLD_SHARED_DIM) { 
+		cudaMalloc((float4 **)&d_wavelet, sizeof(float4)*wavelet_size*wavelet_size);
+	}
 
 	int h_wavelet_sn, h_wavelet_dn, h_wavelet_cas;
 	int v_wavelet_sn, v_wavelet_dn, v_wavelet_cas;
@@ -1038,7 +1040,7 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 		
 	
 		cudaThreadSynchronize();
-		if(rw < 512) { 
+		if(rw < THRESHOLD_SHARED_DIM) { 
 			dim3 threads_h(rw, 1, 1);
 			dim3 grid_h(ceil(rh/4.0), 1, 1);
 			
@@ -1049,7 +1051,7 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 	
 			}
 		} else {
-			dim3 threads_h(512, 1, 1);
+			dim3 threads_h(THRESHOLD_SHARED_DIM, 1, 1);
 			dim3 grid_h(ceil(rh/4.0), 1, 1);
 			if(h_wavelet_cas == 0) {
 				kernel_v4dwt_h_global_cas0<<<grid_h, threads_h, 0>>>(d_tilec_data, h_wavelet_sn, h_wavelet_dn, h_wavelet_cas, w, bufsize, rw, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta, d_wavelet);
@@ -1087,7 +1089,7 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 
 		
 		cudaThreadSynchronize();
-		if(rh < 512) { 
+		if(rh < THRESHOLD_SHARED_DIM) { 
 			dim3 threads_v(rh, 1, 1);
 			dim3 grid_v(ceil(rw/4.0),1,1);
 			if(v_wavelet_cas == 0) { 
@@ -1096,7 +1098,7 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 				kernel_v4dwt_v_cas1<<<grid_v, threads_v, 0>>>(d_tilec_data, v_wavelet_sn, v_wavelet_dn, v_wavelet_cas, w, bufsize, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta);
 			}
 		} else { 
-			dim3 threads_v(512, 1, 1);
+			dim3 threads_v(THRESHOLD_SHARED_DIM, 1, 1);
 			dim3 grid_v(ceil(rw/4.0),1,1);
 			if(v_wavelet_cas == 0) { 
 				kernel_v4dwt_v_global_cas0<<<grid_v, threads_v, 0>>>(d_tilec_data, v_wavelet_sn, v_wavelet_dn, v_wavelet_cas, w, bufsize, rh, K, c13318, f4_dwt_alpha, f4_dwt_beta, f4_dwt_gamma, f4_dwt_delta, d_wavelet);
@@ -1123,8 +1125,9 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 		} */  
 
 	}
+
 	cudaMemcpy(aj, d_tilec_data, sizeof(OPJ_FLOAT32)*bufsize, cudaMemcpyDeviceToHost);
 	cudaFree(d_tilec_data);
-
+	cudaFree(d_wavelet);
 	return OPJ_TRUE;
 }

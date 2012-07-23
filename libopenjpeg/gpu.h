@@ -5,6 +5,7 @@
 #define MAX_THREADS_PER_BLOCK 512
 #define MAX_THREADS_HEIGHT 16
 #define MAX_THREADS_WIDTH 16
+#define THRESHOLD_SHARED_DIM 512
 /**
 Perform Inverse DC Level Shift on the GPU
 @param p_tcd_v2 TCD Handle
