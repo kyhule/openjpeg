@@ -1131,3 +1131,48 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 	cudaFree(d_wavelet);
 	return OPJ_TRUE;
 }
+
+
+__global__ void kernel_t1_decode_cblks(opj_tcd_cblk_dec_v2_t* d_cblks_struct, unsigned int *len) {
+
+	int currentIndex = blockIdx.x; 
+	int threadID = threadIdx.x;
+	if(threadID == 0) { 
+		len[currentIndex] = d_cblks_struct[currentIndex].len;
+		// call code block decoding specific functions
+	}
+
+	// perform parallel data filling
+	return;
+}
+
+void gpu_t1_decode_cblks_across_cblkno(opj_t1_t* t, opj_tcd_tilecomp_v2_t* tilec, opj_tccp_t* tccp, opj_tcd_precinct_v2_t* precinct) {
+
+	int cblkno = 0;
+	int size = precinct->cw * precinct->ch;
+
+	opj_tcd_cblk_dec_v2_t* d_cblks_struct;
+
+	unsigned int* d_len; 
+	unsigned int* h_len = (unsigned int*)opj_malloc(sizeof(unsigned int)*size);
+
+	int threads = MAX_CBLOCK_HEIGHT * MAX_CBLOCK_WIDTH;
+
+	cudaMalloc((opj_tcd_cblk_dec_v2_t** )&d_cblks_struct, sizeof(opj_tcd_cblk_dec_v2_t)*size);
+	cudaMemcpy(d_cblks_struct, &precinct->cblks.dec[0], sizeof(opj_tcd_cblk_dec_v2_t)*size, cudaMemcpyHostToDevice);
+
+	cudaMalloc((unsigned int** )&d_len, sizeof(unsigned int)*size);
+	
+	kernel_t1_decode_cblks<<<size, threads, 0>>>(d_cblks_struct, d_len);
+
+	cudaMemcpy(h_len, d_len, sizeof(unsigned int)*size, cudaMemcpyDeviceToHost);
+
+	/* DEBUG
+	cudaError_t errorV = cudaGetLastError();  
+	printf("[GPU_T1_DECODE_DEBUG] CUDA ERROR : %s\n", cudaGetErrorString(errorV)); 
+	
+	for(cblkno = 0; cblkno < size; cblkno++) {
+		opj_tcd_cblk_dec_v2_t* cblk = &precinct->cblks.dec[cblkno];
+		printf("GPU len[%d] = %u, CPU len = %u\n", cblkno, h_len[cblkno], cblk->len);
+	} */
+}

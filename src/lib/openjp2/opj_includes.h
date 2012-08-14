@@ -167,13 +167,12 @@ static INLINE long lrintf(float f){
 #include "pi.h"
 #include "tgt.h"
 #include "tcd.h"
-#include "gpu.h"
 #include "t1.h"
 #include "dwt.h"
 #include "t2.h"
 #include "mct.h"
 #include "opj_intmath.h"
-
+#include "gpu.h"
 #ifdef USE_JPIP
 #include "cidx_manager.h"
 #include "indexbox_manager.h"
