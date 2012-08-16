@@ -10,6 +10,104 @@ static const float dwt_delta = -0.443506852f; /*  -3633 */
 static const float K      = 1.230174105f; /*  10078 */
 static const float c13318 = 1.625732422f;
 
+static opj_mqc_state_t mqc_states[47 * 2] = {
+	{0x5601, 0, &mqc_states[2], &mqc_states[3]},
+	{0x5601, 1, &mqc_states[3], &mqc_states[2]},
+	{0x3401, 0, &mqc_states[4], &mqc_states[12]},
+	{0x3401, 1, &mqc_states[5], &mqc_states[13]},
+	{0x1801, 0, &mqc_states[6], &mqc_states[18]},
+	{0x1801, 1, &mqc_states[7], &mqc_states[19]},
+	{0x0ac1, 0, &mqc_states[8], &mqc_states[24]},
+	{0x0ac1, 1, &mqc_states[9], &mqc_states[25]},
+	{0x0521, 0, &mqc_states[10], &mqc_states[58]},
+	{0x0521, 1, &mqc_states[11], &mqc_states[59]},
+	{0x0221, 0, &mqc_states[76], &mqc_states[66]},
+	{0x0221, 1, &mqc_states[77], &mqc_states[67]},
+	{0x5601, 0, &mqc_states[14], &mqc_states[13]},
+	{0x5601, 1, &mqc_states[15], &mqc_states[12]},
+	{0x5401, 0, &mqc_states[16], &mqc_states[28]},
+	{0x5401, 1, &mqc_states[17], &mqc_states[29]},
+	{0x4801, 0, &mqc_states[18], &mqc_states[28]},
+	{0x4801, 1, &mqc_states[19], &mqc_states[29]},
+	{0x3801, 0, &mqc_states[20], &mqc_states[28]},
+	{0x3801, 1, &mqc_states[21], &mqc_states[29]},
+	{0x3001, 0, &mqc_states[22], &mqc_states[34]},
+	{0x3001, 1, &mqc_states[23], &mqc_states[35]},
+	{0x2401, 0, &mqc_states[24], &mqc_states[36]},
+	{0x2401, 1, &mqc_states[25], &mqc_states[37]},
+	{0x1c01, 0, &mqc_states[26], &mqc_states[40]},
+	{0x1c01, 1, &mqc_states[27], &mqc_states[41]},
+	{0x1601, 0, &mqc_states[58], &mqc_states[42]},
+	{0x1601, 1, &mqc_states[59], &mqc_states[43]},
+	{0x5601, 0, &mqc_states[30], &mqc_states[29]},
+	{0x5601, 1, &mqc_states[31], &mqc_states[28]},
+	{0x5401, 0, &mqc_states[32], &mqc_states[28]},
+	{0x5401, 1, &mqc_states[33], &mqc_states[29]},
+	{0x5101, 0, &mqc_states[34], &mqc_states[30]},
+	{0x5101, 1, &mqc_states[35], &mqc_states[31]},
+	{0x4801, 0, &mqc_states[36], &mqc_states[32]},
+	{0x4801, 1, &mqc_states[37], &mqc_states[33]},
+	{0x3801, 0, &mqc_states[38], &mqc_states[34]},
+	{0x3801, 1, &mqc_states[39], &mqc_states[35]},
+	{0x3401, 0, &mqc_states[40], &mqc_states[36]},
+	{0x3401, 1, &mqc_states[41], &mqc_states[37]},
+	{0x3001, 0, &mqc_states[42], &mqc_states[38]},
+	{0x3001, 1, &mqc_states[43], &mqc_states[39]},
+	{0x2801, 0, &mqc_states[44], &mqc_states[38]},
+	{0x2801, 1, &mqc_states[45], &mqc_states[39]},
+	{0x2401, 0, &mqc_states[46], &mqc_states[40]},
+	{0x2401, 1, &mqc_states[47], &mqc_states[41]},
+	{0x2201, 0, &mqc_states[48], &mqc_states[42]},
+	{0x2201, 1, &mqc_states[49], &mqc_states[43]},
+	{0x1c01, 0, &mqc_states[50], &mqc_states[44]},
+	{0x1c01, 1, &mqc_states[51], &mqc_states[45]},
+	{0x1801, 0, &mqc_states[52], &mqc_states[46]},
+	{0x1801, 1, &mqc_states[53], &mqc_states[47]},
+	{0x1601, 0, &mqc_states[54], &mqc_states[48]},
+	{0x1601, 1, &mqc_states[55], &mqc_states[49]},
+	{0x1401, 0, &mqc_states[56], &mqc_states[50]},
+	{0x1401, 1, &mqc_states[57], &mqc_states[51]},
+	{0x1201, 0, &mqc_states[58], &mqc_states[52]},
+	{0x1201, 1, &mqc_states[59], &mqc_states[53]},
+	{0x1101, 0, &mqc_states[60], &mqc_states[54]},
+	{0x1101, 1, &mqc_states[61], &mqc_states[55]},
+	{0x0ac1, 0, &mqc_states[62], &mqc_states[56]},
+	{0x0ac1, 1, &mqc_states[63], &mqc_states[57]},
+	{0x09c1, 0, &mqc_states[64], &mqc_states[58]},
+	{0x09c1, 1, &mqc_states[65], &mqc_states[59]},
+	{0x08a1, 0, &mqc_states[66], &mqc_states[60]},
+	{0x08a1, 1, &mqc_states[67], &mqc_states[61]},
+	{0x0521, 0, &mqc_states[68], &mqc_states[62]},
+	{0x0521, 1, &mqc_states[69], &mqc_states[63]},
+	{0x0441, 0, &mqc_states[70], &mqc_states[64]},
+	{0x0441, 1, &mqc_states[71], &mqc_states[65]},
+	{0x02a1, 0, &mqc_states[72], &mqc_states[66]},
+	{0x02a1, 1, &mqc_states[73], &mqc_states[67]},
+	{0x0221, 0, &mqc_states[74], &mqc_states[68]},
+	{0x0221, 1, &mqc_states[75], &mqc_states[69]},
+	{0x0141, 0, &mqc_states[76], &mqc_states[70]},
+	{0x0141, 1, &mqc_states[77], &mqc_states[71]},
+	{0x0111, 0, &mqc_states[78], &mqc_states[72]},
+	{0x0111, 1, &mqc_states[79], &mqc_states[73]},
+	{0x0085, 0, &mqc_states[80], &mqc_states[74]},
+	{0x0085, 1, &mqc_states[81], &mqc_states[75]},
+	{0x0049, 0, &mqc_states[82], &mqc_states[76]},
+	{0x0049, 1, &mqc_states[83], &mqc_states[77]},
+	{0x0025, 0, &mqc_states[84], &mqc_states[78]},
+	{0x0025, 1, &mqc_states[85], &mqc_states[79]},
+	{0x0015, 0, &mqc_states[86], &mqc_states[80]},
+	{0x0015, 1, &mqc_states[87], &mqc_states[81]},
+	{0x0009, 0, &mqc_states[88], &mqc_states[82]},
+	{0x0009, 1, &mqc_states[89], &mqc_states[83]},
+	{0x0005, 0, &mqc_states[90], &mqc_states[84]},
+	{0x0005, 1, &mqc_states[91], &mqc_states[85]},
+	{0x0001, 0, &mqc_states[90], &mqc_states[86]},
+	{0x0001, 1, &mqc_states[91], &mqc_states[87]},
+	{0x5601, 0, &mqc_states[92], &mqc_states[92]},
+	{0x5601, 1, &mqc_states[93], &mqc_states[93]},
+};
+
+
 __device__ float4 operator+(const float4 &a, const float4 &b) {
     return make_float4(a.x+b.x, a.y+b.y, a.z+b.z, a.w+b.w);
 }
@@ -1132,47 +1230,181 @@ opj_bool gpu_dwt_decode_real_v2(opj_tcd_tilecomp_v2_t* restrict tilec, OPJ_UINT3
 	return OPJ_TRUE;
 }
 
+__device__ static void device_func_t1_decode_cblk_v2(
+		OPJ_UINT32 currentIndex,
+		opj_t1_t *t1,
+		opj_tcd_cblk_dec_v2_t* cblk,
+		OPJ_UINT32 orient,
+		OPJ_UINT32 roishift,
+		OPJ_UINT32 cblksty,
+		opj_mqc_state_t* mqc_states,
+		opj_mqc_t* mqc,
+		opj_tcd_seg_t* segs)
+{
 
-__global__ void kernel_t1_decode_cblks(opj_tcd_cblk_dec_v2_t* d_cblks_struct, unsigned int *len) {
+	OPJ_INT32 bpno;
+	OPJ_UINT32 passtype;
+	OPJ_UINT32 segno, passno;
+	OPJ_BYTE type = T1_TYPE_MQ; 
+	
+	bpno = roishift + cblk->numbps - 1;
+	passtype = 2;
+
+	OPJ_INT32 i = 0;
+
+	/* mqc_resetstates */
+	for(i = 0; i < MQC_NUMCTXS; i++) { 
+		mqc->ctxs[i] = mqc_states;
+	}
+
+	/* mqc_setstate */
+	mqc->ctxs[T1_CTXNO_UNI] = &mqc_states[0 + (46 << 1)];
+	mqc->ctxs[T1_CTXNO_AGG] = &mqc_states[0 + (3 << 1)];
+	mqc->ctxs[T1_CTXNO_ZC] = &mqc_states[0 + (4 << 1)];
+
+	// TODO: ADD segno and passno loop
+} 
+
+__global__ void kernel_t1_decode_cblks(opj_tcd_cblk_dec_v2_t* d_cblks_struct, unsigned int* len, 
+		opj_tcd_band_v2_t* band, opj_tcd_resolution_v2_t* pres, opj_t1_t* t1, int *d_t1_data,
+		opj_tccp_t* tccp, opj_mqc_state_t* mqc_states, opj_mqc_t* d_t1_mqc, opj_tcd_seg_t *d_t1_segs) {
 
 	int currentIndex = blockIdx.x; 
 	int threadID = threadIdx.x;
-	if(threadID == 0) { 
-		len[currentIndex] = d_cblks_struct[currentIndex].len;
-		// call code block decoding specific functions
+
+	unsigned int cblk_w, cblk_h;
+	int x, y;
+	unsigned int i = threadIdx.x;
+	unsigned int j = threadIdx.y;
+
+	int* restrict datap = d_t1_data;
+	
+	if(threadID == 0) {
+		
+		// calling decode one code block function here
+		device_func_t1_decode_cblk_v2(currentIndex, t1, &d_cblks_struct[currentIndex], band->bandno, tccp->roishift, tccp->cblksty,
+				mqc_states, &d_t1_mqc[currentIndex], d_t1_segs);
+	
+		x = d_cblks_struct[currentIndex].x0 - band->x0;
+		y = d_cblks_struct[currentIndex].y0 - band->y0;
+		
+		if (band->bandno & 1) {
+			x += pres->x1 - pres->x0;
+		}
+		if (band->bandno & 2) {
+			y += pres->y1 - pres->y0;
+		}
+		
+		cblk_w = d_cblks_struct[currentIndex].x1 - d_cblks_struct[currentIndex].x0;
+		cblk_h = d_cblks_struct[currentIndex].y1 - d_cblks_struct[currentIndex].y0;
+
+		len[currentIndex] = (&d_t1_segs[currentIndex*2*J2K_DEFAULT_NB_SEGS])->len; /* DEBUG */
 	}
 
-	// perform parallel data filling
+	//TODO : handle tccp->roishift 
+
+	// parallel data filling part
+	if( i < cblk_w && j < cblk_h) { 
+		float tmp = datap[(j * cblk_w) + i] * band->stepsize;
+	}
+
 	return;
 }
 
-void gpu_t1_decode_cblks_across_cblkno(opj_t1_t* t, opj_tcd_tilecomp_v2_t* tilec, opj_tccp_t* tccp, opj_tcd_precinct_v2_t* precinct) {
+void gpu_t1_decode_cblks_across_cblkno(opj_t1_t* t1, opj_tcd_tilecomp_v2_t* tilec, opj_tccp_t* tccp, 
+		opj_tcd_precinct_v2_t* precinct, opj_tcd_band_v2_t* band, OPJ_UINT32 resno, OPJ_UINT32 tile_w) {
 
-	int cblkno = 0;
-	int size = precinct->cw * precinct->ch;
+	OPJ_INT32 cblkno = 0;
+	OPJ_INT32 size = precinct->cw * precinct->ch;
 
 	opj_tcd_cblk_dec_v2_t* d_cblks_struct;
+	opj_tcd_band_v2_t* d_band;
+	opj_t1_t* d_t1;
+	opj_tccp_t* d_tccp;
+	opj_mqc_state_t* d_mqc_states;
 
 	unsigned int* d_len; 
+	
 	unsigned int* h_len = (unsigned int*)opj_malloc(sizeof(unsigned int)*size);
 
-	int threads = MAX_CBLOCK_HEIGHT * MAX_CBLOCK_WIDTH;
+	dim3 threads(MAX_CBLOCK_HEIGHT, MAX_CBLOCK_WIDTH, 1);
 
+	/* Memory allocation and initialization on GPU of OPJ Structs */
 	cudaMalloc((opj_tcd_cblk_dec_v2_t** )&d_cblks_struct, sizeof(opj_tcd_cblk_dec_v2_t)*size);
 	cudaMemcpy(d_cblks_struct, &precinct->cblks.dec[0], sizeof(opj_tcd_cblk_dec_v2_t)*size, cudaMemcpyHostToDevice);
 
-	cudaMalloc((unsigned int** )&d_len, sizeof(unsigned int)*size);
+	cudaMalloc((opj_tcd_band_v2_t** )&d_band, sizeof(opj_tcd_band_v2_t));
+	cudaMemcpy(d_band, band, sizeof(opj_tcd_band_v2_t), cudaMemcpyHostToDevice);
 	
-	kernel_t1_decode_cblks<<<size, threads, 0>>>(d_cblks_struct, d_len);
+	cudaMalloc((opj_t1_t** )&d_t1, sizeof(opj_t1_t));
+	cudaMemcpy(d_t1, t1, sizeof(opj_t1_t), cudaMemcpyHostToDevice);
+
+	cudaMalloc((opj_tccp_t** )&d_tccp, sizeof(opj_tccp_t));
+	cudaMemcpy(d_tccp, tccp, sizeof(opj_tccp_t), cudaMemcpyHostToDevice);
+	
+	cudaMalloc((opj_mqc_state_t** )&d_mqc_states, sizeof(opj_mqc_state_t)*47*2);
+	cudaMemcpy(d_mqc_states, mqc_states, sizeof(opj_mqc_state_t)*47*2, cudaMemcpyHostToDevice);
+	
+	/* Test array of size equal to number of code blocks to verify memory sanity */
+	cudaMalloc((unsigned int** )&d_len, sizeof(unsigned int)*size);
+
+	/* Memory allocation and/or initialization on GPU of arrays inside OPJ Structs */
+	int d_t1_data_size = MAX_CBLOCK_HEIGHT*MAX_CBLOCK_WIDTH*size;
+	int *d_t1_data;
+	cudaMalloc((int**)&d_t1_data, sizeof(int)*d_t1_data_size);
+	
+	int d_t1_flags_size = (MAX_CBLOCK_WIDTH+2)*(MAX_CBLOCK_HEIGHT+2)*size;  
+	flag_t *d_t1_flags; 
+	cudaMalloc((flag_t**)&d_t1_flags, sizeof(flag_t)*d_t1_flags_size);
+
+	int d_t1_mqc_size = size; 
+	opj_mqc_t* d_t1_mqc;
+	cudaMalloc((opj_mqc_t**)&d_t1_mqc, sizeof(opj_mqc_t)*d_t1_mqc_size);
+
+	int d_t1_segs_size = 2*J2K_DEFAULT_NB_SEGS*size;
+	opj_tcd_seg_t* d_t1_segs;
+	cudaMalloc((opj_tcd_seg_t**)&d_t1_segs, sizeof(opj_tcd_seg_t)*d_t1_segs_size);
+
+	for(cblkno = 0; cblkno < size; cblkno++) { 
+		opj_tcd_cblk_dec_v2_t* cblk = &precinct->cblks.dec[cblkno];
+		cudaMemcpy(d_t1_segs + (2*J2K_DEFAULT_NB_SEGS*cblkno), cblk->segs, sizeof(opj_tcd_seg_t)*cblk->real_num_segs, cudaMemcpyHostToDevice);
+	}
+	
+	opj_tcd_resolution_v2_t* pres;
+	opj_tcd_resolution_v2_t* d_pres;
+	if(band->bandno & 1 || band->bandno & 2) { 
+	 	pres = &tilec->resolutions[resno - 1];
+		cudaMalloc((opj_tcd_resolution_v2_t** )&d_pres, sizeof(opj_tcd_resolution_v2_t));
+		cudaMemcpy(d_pres, pres, sizeof(opj_tcd_resolution_v2), cudaMemcpyHostToDevice);
+	} 
+	
+	// DEBUG printf("Calling Kernel with data size %d\n",t1->datasize);
+
+	kernel_t1_decode_cblks<<<size, threads, 0>>>(d_cblks_struct, d_len, d_band, d_pres, d_t1, d_t1_data, d_tccp,
+			d_mqc_states, d_t1_mqc, d_t1_segs);
 
 	cudaMemcpy(h_len, d_len, sizeof(unsigned int)*size, cudaMemcpyDeviceToHost);
 
-	/* DEBUG
 	cudaError_t errorV = cudaGetLastError();  
 	printf("[GPU_T1_DECODE_DEBUG] CUDA ERROR : %s\n", cudaGetErrorString(errorV)); 
-	
+
+	/* DEBUG
 	for(cblkno = 0; cblkno < size; cblkno++) {
 		opj_tcd_cblk_dec_v2_t* cblk = &precinct->cblks.dec[cblkno];
-		printf("GPU len[%d] = %u, CPU len = %u\n", cblkno, h_len[cblkno], cblk->len);
-	} */
+		int x = cblk->x0 - band->x0;
+		int y = cblk->y0 - band->y0;
+		if (band->bandno & 1) {
+			opj_tcd_resolution_v2_t* pres = &tilec->resolutions[resno - 1];
+			x += pres->x1 - pres->x0;
+		}
+		if (band->bandno & 2) {
+			opj_tcd_resolution_v2_t* pres = &tilec->resolutions[resno - 1];
+			y += pres->y1 - pres->y0;
+		}
+
+		unsigned int cblk_w = t1->w;
+		unsigned int cblk_h = t1->h;
+		printf("GPU data[%d] = %u, corresponding CPU data = %u, %u\n", cblkno, h_len[cblkno], (&cblk->segs[0])->len, cblk->real_num_segs);
+	}  */
 }
+
