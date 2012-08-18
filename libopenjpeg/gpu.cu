@@ -1239,7 +1239,8 @@ __device__ static void device_func_t1_decode_cblk_v2(
 		OPJ_UINT32 cblksty,
 		opj_mqc_state_t* mqc_states,
 		opj_mqc_t* mqc,
-		opj_tcd_seg_t* segs)
+		opj_tcd_seg_t* segs,
+		OPJ_BYTE* d_cblk_segs_data)
 {
 
 	OPJ_INT32 bpno;
@@ -1262,12 +1263,29 @@ __device__ static void device_func_t1_decode_cblk_v2(
 	mqc->ctxs[T1_CTXNO_AGG] = &mqc_states[0 + (3 << 1)];
 	mqc->ctxs[T1_CTXNO_ZC] = &mqc_states[0 + (4 << 1)];
 
-	// TODO: ADD segno and passno loop
+	for(segno = 0; segno < cblk->real_num_segs; ++segno) { 
+		
+		opj_tcd_seg_t *seg = &segs[(2*J2K_DEFAULT_NB_SEGS*currentIndex) + segno];
+		
+		type = ((bpno <= ((OPJ_INT32) (cblk->numbps) - 1) - 4) && (passtype < 2) && (cblksty & J2K_CCP_CBLKSTY_LAZY)) ? T1_TYPE_RAW : T1_TYPE_MQ;
+
+		if(d_cblk_segs_data[currentIndex*2*J2K_DEFAULT_NB_SEGS*segno*8192] == 00) { 
+			continue;
+		}
+
+		if(type == T1_TYPE_RAW) { 
+			//TODO : raw_init_dec	
+		} else { 
+			//TODO : mqc_init_dec
+		}
+		//TODO : for loop passno, three decoding passes
+	}
 } 
 
 __global__ void kernel_t1_decode_cblks(opj_tcd_cblk_dec_v2_t* d_cblks_struct, unsigned int* len, 
 		opj_tcd_band_v2_t* band, opj_tcd_resolution_v2_t* pres, opj_t1_t* t1, int *d_t1_data,
-		opj_tccp_t* tccp, opj_mqc_state_t* mqc_states, opj_mqc_t* d_t1_mqc, opj_tcd_seg_t *d_t1_segs) {
+		opj_tccp_t* tccp, opj_mqc_state_t* mqc_states, opj_mqc_t* d_t1_mqc, opj_tcd_seg_t *d_cblk_segs,
+		OPJ_BYTE* d_cblk_segs_data) {
 
 	int currentIndex = blockIdx.x; 
 	int threadID = threadIdx.x;
@@ -1281,9 +1299,9 @@ __global__ void kernel_t1_decode_cblks(opj_tcd_cblk_dec_v2_t* d_cblks_struct, un
 	
 	if(threadID == 0) {
 		
-		// calling decode one code block function here
+		// call decode one code block function here
 		device_func_t1_decode_cblk_v2(currentIndex, t1, &d_cblks_struct[currentIndex], band->bandno, tccp->roishift, tccp->cblksty,
-				mqc_states, &d_t1_mqc[currentIndex], d_t1_segs);
+				mqc_states, &d_t1_mqc[currentIndex], d_cblk_segs, d_cblk_segs_data);
 	
 		x = d_cblks_struct[currentIndex].x0 - band->x0;
 		y = d_cblks_struct[currentIndex].y0 - band->y0;
@@ -1298,10 +1316,8 @@ __global__ void kernel_t1_decode_cblks(opj_tcd_cblk_dec_v2_t* d_cblks_struct, un
 		cblk_w = d_cblks_struct[currentIndex].x1 - d_cblks_struct[currentIndex].x0;
 		cblk_h = d_cblks_struct[currentIndex].y1 - d_cblks_struct[currentIndex].y0;
 
-		len[currentIndex] = (&d_t1_segs[currentIndex*2*J2K_DEFAULT_NB_SEGS])->len; /* DEBUG */
+		len[currentIndex] = (&d_cblk_segs[currentIndex*2*J2K_DEFAULT_NB_SEGS])->len;
 	}
-
-	//TODO : handle tccp->roishift 
 
 	// parallel data filling part
 	if( i < cblk_w && j < cblk_h) { 
@@ -1322,6 +1338,7 @@ void gpu_t1_decode_cblks_across_cblkno(opj_t1_t* t1, opj_tcd_tilecomp_v2_t* tile
 	opj_t1_t* d_t1;
 	opj_tccp_t* d_tccp;
 	opj_mqc_state_t* d_mqc_states;
+	OPJ_UINT32 segno;
 
 	unsigned int* d_len; 
 	
@@ -1361,13 +1378,22 @@ void gpu_t1_decode_cblks_across_cblkno(opj_t1_t* t1, opj_tcd_tilecomp_v2_t* tile
 	opj_mqc_t* d_t1_mqc;
 	cudaMalloc((opj_mqc_t**)&d_t1_mqc, sizeof(opj_mqc_t)*d_t1_mqc_size);
 
-	int d_t1_segs_size = 2*J2K_DEFAULT_NB_SEGS*size;
-	opj_tcd_seg_t* d_t1_segs;
-	cudaMalloc((opj_tcd_seg_t**)&d_t1_segs, sizeof(opj_tcd_seg_t)*d_t1_segs_size);
 
+	int d_cblk_segs_size = 2*J2K_DEFAULT_NB_SEGS*size;
+	opj_tcd_seg_t* d_cblk_segs;
+	cudaMalloc((opj_tcd_seg_t**)&d_cblk_segs, sizeof(opj_tcd_seg_t)*d_cblk_segs_size);
+
+	int d_cblk_segs_data_size = 8192*d_cblk_segs_size; 
+	OPJ_BYTE *d_cblk_segs_data; 
+	cudaMalloc((OPJ_BYTE**)&d_cblk_segs_data, sizeof(OPJ_BYTE)*d_cblk_segs_data_size);
+	
 	for(cblkno = 0; cblkno < size; cblkno++) { 
 		opj_tcd_cblk_dec_v2_t* cblk = &precinct->cblks.dec[cblkno];
-		cudaMemcpy(d_t1_segs + (2*J2K_DEFAULT_NB_SEGS*cblkno), cblk->segs, sizeof(opj_tcd_seg_t)*cblk->real_num_segs, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_cblk_segs + (2*J2K_DEFAULT_NB_SEGS*cblkno), cblk->segs, sizeof(opj_tcd_seg_t)*cblk->real_num_segs, cudaMemcpyHostToDevice);
+		for (segno = 0; segno < cblk->real_num_segs; ++segno) {
+			opj_tcd_seg_t *seg = &cblk->segs[segno];
+			cudaMemcpy(d_cblk_segs_data +  (2*J2K_DEFAULT_NB_SEGS*cblkno*8192*segno), (*seg->data) + seg->dataindex, seg->len*(sizeof(OPJ_BYTE)), cudaMemcpyHostToDevice);
+		}
 	}
 	
 	opj_tcd_resolution_v2_t* pres;
@@ -1378,17 +1404,17 @@ void gpu_t1_decode_cblks_across_cblkno(opj_t1_t* t1, opj_tcd_tilecomp_v2_t* tile
 		cudaMemcpy(d_pres, pres, sizeof(opj_tcd_resolution_v2), cudaMemcpyHostToDevice);
 	} 
 	
-	// DEBUG printf("Calling Kernel with data size %d\n",t1->datasize);
+	// printf("Calling Kernel with data size %d\n",t1->datasize);
 
 	kernel_t1_decode_cblks<<<size, threads, 0>>>(d_cblks_struct, d_len, d_band, d_pres, d_t1, d_t1_data, d_tccp,
-			d_mqc_states, d_t1_mqc, d_t1_segs);
+			d_mqc_states, d_t1_mqc, d_cblk_segs, d_cblk_segs_data);
 
 	cudaMemcpy(h_len, d_len, sizeof(unsigned int)*size, cudaMemcpyDeviceToHost);
 
+	/* DEBUG
 	cudaError_t errorV = cudaGetLastError();  
 	printf("[GPU_T1_DECODE_DEBUG] CUDA ERROR : %s\n", cudaGetErrorString(errorV)); 
-
-	/* DEBUG
+	
 	for(cblkno = 0; cblkno < size; cblkno++) {
 		opj_tcd_cblk_dec_v2_t* cblk = &precinct->cblks.dec[cblkno];
 		int x = cblk->x0 - band->x0;
@@ -1404,7 +1430,8 @@ void gpu_t1_decode_cblks_across_cblkno(opj_t1_t* t1, opj_tcd_tilecomp_v2_t* tile
 
 		unsigned int cblk_w = t1->w;
 		unsigned int cblk_h = t1->h;
-		printf("GPU data[%d] = %u, corresponding CPU data = %u, %u\n", cblkno, h_len[cblkno], (&cblk->segs[0])->len, cblk->real_num_segs);
-	}  */
+		printf("GPU data[%d] = %u, corresponding CPU data = %u, %u\n", cblkno, h_len[cblkno], (&cblk->segs[0])->len,
+				cblk->real_num_segs);
+	} */
 }
 
