@@ -19,6 +19,7 @@ import java.util.Iterator;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
+import javax.imageio.spi.IIORegistry;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -30,6 +31,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 
+import org.openJpeg.JP2KOpenJpegImageReaderSpi;
 import org.openJpeg.OpenJPEGJavaDecoder;
 
 public class jOpenJPEGViewer extends JFrame {
