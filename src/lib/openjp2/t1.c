@@ -39,6 +39,10 @@
 #include "opj_includes.h"
 #include "t1_luts.h"
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 /** @defgroup T1 T1 - Implementation of the tier-1 coding */
 /*@{*/
 
@@ -1260,14 +1264,15 @@ void opj_t1_destroy(opj_t1_t *p_t1)
 	opj_free(p_t1);
 }
 
-OPJ_BOOL opj_t1_decode_cblks(   opj_t1_t* t1,
-                            opj_tcd_tilecomp_t* tilec,
+OPJ_BOOL opj_t1_decode_cblks(  opj_tcd_tilecomp_t* tilec,
                             opj_tccp_t* tccp
                             )
 {
-	OPJ_UINT32 resno, bandno, precno, cblkno;
+	OPJ_UINT32 resno, bandno, precno;
 	OPJ_UINT32 tile_w = (OPJ_UINT32)(tilec->x1 - tilec->x0);
-
+#ifdef _OPENMP
+	omp_set_num_threads(NUM_CORES);
+#endif
 	for (resno = 0; resno < tilec->minimum_num_resolutions; ++resno) {
 		opj_tcd_resolution_t* res = &tilec->resolutions[resno];
 
@@ -1276,8 +1281,14 @@ OPJ_BOOL opj_t1_decode_cblks(   opj_t1_t* t1,
 
 			for (precno = 0; precno < res->pw * res->ph; ++precno) {
 				opj_tcd_precinct_t* precinct = &band->precincts[precno];
+				OPJ_INT32 cblkno;
 
-				for (cblkno = 0; cblkno < precinct->cw * precinct->ch; ++cblkno) {
+#ifdef _OPENMP
+				#pragma omp parallel default(none) private(cblkno) shared(band, tilec,precinct, tccp,  tile_w, resno)
+				{
+				#pragma omp for
+#endif
+				for (cblkno = 0; cblkno < (OPJ_INT32)(precinct->cw * precinct->ch); ++cblkno) {
 					opj_tcd_cblk_dec_t* cblk = &precinct->cblks.dec[cblkno];
 					OPJ_INT32* restrict datap;
 					/*void* restrict tiledp;*/
@@ -1285,13 +1296,18 @@ OPJ_BOOL opj_t1_decode_cblks(   opj_t1_t* t1,
 					OPJ_INT32 x, y;
 					OPJ_UINT32 i, j;
 
+					 opj_t1_t* t1 = opj_t1_create();
+					if (t1 == 00) {
+							//return OPJ_FALSE;
+					}
+
                     if (OPJ_FALSE == opj_t1_decode_cblk(
                                             t1,
                                             cblk,
                                             band->bandno,
                                             (OPJ_UINT32)tccp->roishift,
                                             tccp->cblksty)) {
-                            return OPJ_FALSE;
+                          //  return OPJ_FALSE;
                     }
 
 					x = cblk->x0 - band->x0;
@@ -1351,8 +1367,12 @@ OPJ_BOOL opj_t1_decode_cblks(   opj_t1_t* t1,
                     /*opj_free(cblk->data);
 					opj_free(cblk->segs);*/
 					/*cblk->segs = 00;*/
+					 opj_t1_destroy(t1);
 				} /* cblkno */
                 /*opj_free(precinct->cblks.dec);*/
+#ifdef _OPENMP
+				}
+#endif
 			} /* precno */
 		} /* bandno */
 	} /* resno */
@@ -1460,10 +1480,12 @@ OPJ_BOOL opj_t1_encode_cblks(   opj_t1_t *t1,
                                 const OPJ_FLOAT64 * mct_norms
                                 )
 {
-	OPJ_UINT32 compno, resno, bandno, precno, cblkno;
+	OPJ_UINT32 compno, resno, bandno, precno;
 
 	tile->distotile = 0;		/* fixed_quality */
-
+#ifdef _OPENMP
+	omp_set_num_threads(NUM_CORES);
+#endif
 	for (compno = 0; compno < tile->numcomps; ++compno) {
 		opj_tcd_tilecomp_t* tilec = &tile->comps[compno];
 		opj_tccp_t* tccp = &tcp->tccps[compno];
@@ -1478,8 +1500,14 @@ OPJ_BOOL opj_t1_encode_cblks(   opj_t1_t *t1,
 
 				for (precno = 0; precno < res->pw * res->ph; ++precno) {
 					opj_tcd_precinct_t *prc = &band->precincts[precno];
-
-					for (cblkno = 0; cblkno < prc->cw * prc->ch; ++cblkno) {
+					 OPJ_INT32 cblkno;
+					 
+#ifdef _OPENMP			
+					 #pragma omp parallel default(none) private(cblkno) shared(band, prc, tilec, tccp, mct_norms, bandconst,compno, tile, tile_w, resno)
+					 {
+					#pragma omp for
+#endif
+					for (cblkno = 0; cblkno < (OPJ_INT32)(prc->cw * prc->ch); ++cblkno) {
 						opj_tcd_cblk_enc_t* cblk = &prc->cblks.enc[cblkno];
 						OPJ_INT32 * restrict datap;
 						OPJ_INT32* restrict tiledp;
@@ -1487,6 +1515,7 @@ OPJ_BOOL opj_t1_encode_cblks(   opj_t1_t *t1,
 						OPJ_UINT32 cblk_h;
 						OPJ_UINT32 i, j;
 
+						opj_t1_t * t1 = 00;
 						OPJ_INT32 x = cblk->x0 - band->x0;
 						OPJ_INT32 y = cblk->y0 - band->y0;
 						if (band->bandno & 1) {
@@ -1497,13 +1526,14 @@ OPJ_BOOL opj_t1_encode_cblks(   opj_t1_t *t1,
 							opj_tcd_resolution_t *pres = &tilec->resolutions[resno - 1];
 							y += pres->y1 - pres->y0;
 						}
-
+						t1 = opj_t1_create();
+				              //return OPJ_FALSE;
 						if(!opj_t1_allocate_buffers(
 									t1,
 									(OPJ_UINT32)(cblk->x1 - cblk->x0),
 									(OPJ_UINT32)(cblk->y1 - cblk->y0)))
 						{
-							return OPJ_FALSE;
+							//return OPJ_FALSE;
 						}
 
 						datap=t1->data;
@@ -1544,6 +1574,9 @@ OPJ_BOOL opj_t1_encode_cblks(   opj_t1_t *t1,
 								mct_norms);
 
 					} /* cblkno */
+#ifdef _OPENMP
+					 }
+#endif
 				} /* precno */
 			} /* bandno */
 		} /* resno  */

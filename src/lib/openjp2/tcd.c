@@ -39,6 +39,10 @@
  */
 
 #include "opj_includes.h"
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 
 /* ----------------------------------------------------------------------- */
 
@@ -1503,42 +1507,36 @@ OPJ_BOOL opj_tcd_t2_decode (opj_tcd_t *p_tcd,
 OPJ_BOOL opj_tcd_t1_decode ( opj_tcd_t *p_tcd )
 {
         OPJ_UINT32 compno;
-        opj_t1_t * l_t1;
         opj_tcd_tile_t * l_tile = p_tcd->tcd_image->tiles;
         opj_tcd_tilecomp_t* l_tile_comp = l_tile->comps;
         opj_tccp_t * l_tccp = p_tcd->tcp->tccps;
-
-
-        l_t1 = opj_t1_create();
-        if (l_t1 == 00) {
-                return OPJ_FALSE;
-        }
-
         for (compno = 0; compno < l_tile->numcomps; ++compno) {
+
                 /* The +3 is headroom required by the vectorized DWT */
-                if (OPJ_FALSE == opj_t1_decode_cblks(l_t1, l_tile_comp, l_tccp)) {
-                        opj_t1_destroy(l_t1);
+                if (OPJ_FALSE == opj_t1_decode_cblks(l_tile_comp, l_tccp)) {
                         return OPJ_FALSE;
                 }
                 ++l_tile_comp;
                 ++l_tccp;
         }
-
-        opj_t1_destroy(l_t1);
-
         return OPJ_TRUE;
 }
 
 
 OPJ_BOOL opj_tcd_dwt_decode ( opj_tcd_t *p_tcd )
 {
-        OPJ_UINT32 compno;
         opj_tcd_tile_t * l_tile = p_tcd->tcd_image->tiles;
-        opj_tcd_tilecomp_t * l_tile_comp = l_tile->comps;
-        opj_tccp_t * l_tccp = p_tcd->tcp->tccps;
-        opj_image_comp_t * l_img_comp = p_tcd->image->comps;
-
+		OPJ_INT32 compno;
+#ifdef _OPENMP
+		omp_set_num_threads(NUM_CORES < 3 ? NUM_CORES : 3);
+		 #pragma omp parallel default(none) private(compno) shared(p_tcd, l_tile)
+		 {
+		#pragma omp for
+#endif
         for (compno = 0; compno < l_tile->numcomps; compno++) {
+			 opj_tcd_tilecomp_t * l_tile_comp = l_tile->comps + compno;
+			opj_tccp_t * l_tccp = p_tcd->tcp->tccps + compno;
+			opj_image_comp_t * l_img_comp = p_tcd->image->comps + compno;
                 /*
                 if (tcd->cp->reduce != 0) {
                         tcd->image->comps[compno].resno_decoded =
@@ -1554,19 +1552,19 @@ OPJ_BOOL opj_tcd_dwt_decode ( opj_tcd_t *p_tcd )
 
                 if (l_tccp->qmfbid == 1) {
                         if (! opj_dwt_decode(l_tile_comp, l_img_comp->resno_decoded+1)) {
-                                return OPJ_FALSE;
+                              //  return OPJ_FALSE;
                         }
                 }
                 else {
                         if (! opj_dwt_decode_real(l_tile_comp, l_img_comp->resno_decoded+1)) {
-                                return OPJ_FALSE;
+                                //return OPJ_FALSE;
                         }
                 }
+#ifdef _OPENMP
+          }
+#endif
 
-                ++l_tile_comp;
-                ++l_img_comp;
-                ++l_tccp;
-        }
+		 }
 
         return OPJ_TRUE;
 }
@@ -1651,22 +1649,20 @@ OPJ_BOOL opj_tcd_mct_decode ( opj_tcd_t *p_tcd )
 OPJ_BOOL opj_tcd_dc_level_shift_decode ( opj_tcd_t *p_tcd )
 {
         OPJ_UINT32 compno;
-        opj_tcd_tilecomp_t * l_tile_comp = 00;
-        opj_tccp_t * l_tccp = 00;
-        opj_image_comp_t * l_img_comp = 00;
         opj_tcd_resolution_t* l_res = 00;
-        opj_tcd_tile_t * l_tile;
         OPJ_UINT32 l_width,l_height,i,j;
         OPJ_INT32 * l_current_ptr;
         OPJ_INT32 l_min, l_max;
         OPJ_UINT32 l_stride;
 
-        l_tile = p_tcd->tcd_image->tiles;
-        l_tile_comp = l_tile->comps;
-        l_tccp = p_tcd->tcp->tccps;
-        l_img_comp = p_tcd->image->comps;
+        opj_tcd_tile_t *l_tile = p_tcd->tcd_image->tiles;
+
 
         for (compno = 0; compno < l_tile->numcomps; compno++) {
+		        opj_tcd_tilecomp_t *l_tile_comp = l_tile->comps + compno;
+				opj_tccp_t * l_tccp = p_tcd->tcp->tccps + compno;
+				opj_image_comp_t * l_img_comp = p_tcd->image->comps + compno;
+
                 l_res = l_tile_comp->resolutions + l_img_comp->resno_decoded;
                 l_width = (OPJ_UINT32)(l_res->x1 - l_res->x0);
                 l_height = (OPJ_UINT32)(l_res->y1 - l_res->y0);
@@ -1704,10 +1700,6 @@ OPJ_BOOL opj_tcd_dc_level_shift_decode ( opj_tcd_t *p_tcd )
                                 l_current_ptr += l_stride;
                         }
                 }
-
-                ++l_img_comp;
-                ++l_tccp;
-                ++l_tile_comp;
         }
 
         return OPJ_TRUE;
@@ -1912,29 +1904,36 @@ OPJ_BOOL opj_tcd_mct_encode ( opj_tcd_t *p_tcd )
         return OPJ_TRUE;
 }
 
+
+
 OPJ_BOOL opj_tcd_dwt_encode ( opj_tcd_t *p_tcd )
 {
-        opj_tcd_tile_t * l_tile = p_tcd->tcd_image->tiles;
-        opj_tcd_tilecomp_t * l_tile_comp = p_tcd->tcd_image->tiles->comps;
-        opj_tccp_t * l_tccp = p_tcd->tcp->tccps;
-        OPJ_UINT32 compno;
-
+       opj_tcd_tile_t * l_tile = p_tcd->tcd_image->tiles;
+        OPJ_INT32 compno;
+#ifdef _OPENMP
+		omp_set_num_threads(NUM_CORES < 3 ? NUM_CORES : 3);
+		 #pragma omp parallel default(none) private(compno) shared(p_tcd, l_tile)
+		 {
+		#pragma omp for
+#endif
         for (compno = 0; compno < l_tile->numcomps; ++compno) {
+			   opj_tcd_tilecomp_t * tile_comp = p_tcd->tcd_image->tiles->comps + compno;
+			    opj_tccp_t * l_tccp = p_tcd->tcp->tccps + compno;
                 if (l_tccp->qmfbid == 1) {
-                        if (! opj_dwt_encode(l_tile_comp)) {
-                                return OPJ_FALSE;
+                        if (! opj_dwt_encode(tile_comp)) {
+                               // return OPJ_FALSE;
                         }
                 }
                 else if (l_tccp->qmfbid == 0) {
-                        if (! opj_dwt_encode_real(l_tile_comp)) {
-                                return OPJ_FALSE;
+                        if (! opj_dwt_encode_real(tile_comp)) {
+                               // return OPJ_FALSE;
                         }
                 }
-
-                ++l_tile_comp;
-                ++l_tccp;
         }
-
+#ifdef _OPENMP
+		 }
+#endif
+		 
         return OPJ_TRUE;
 }
 
