@@ -1871,7 +1871,5 @@ int main(int argc, char **argv) {
 	
 	t = opj_clock() - t;
 	fprintf(stdout, "encode time: %d ms \n", (int)((t * 1000)/num_images));
-	scanf("%d");
-
     return 0;
 }

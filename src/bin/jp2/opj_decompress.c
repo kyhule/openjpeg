@@ -1007,7 +1007,6 @@ int main(int argc, char **argv)
 		if(failed) remove(parameters.outfile);
 	}
 	fprintf(stdout, "decode time: %d ms \n", (int)(t * 1000));
-	scanf("%d");
 	return failed ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 /*end main*/
