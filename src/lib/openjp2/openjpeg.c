@@ -94,7 +94,7 @@ OPJ_BOOL OPJ_CALLCONV opj_set_error_handler(opj_codec_t * p_codec,
 static OPJ_SIZE_T opj_read_from_buffer(void * p_buffer,
     OPJ_SIZE_T p_nb_bytes, opj_buffer_info_t* p_source_buffer)
 {
-    OPJ_UINT32 l_nb_read;
+    OPJ_SIZE_T l_nb_read;
 
     if(p_source_buffer->cur + p_nb_bytes < p_source_buffer->buf + p_source_buffer->len )
    {
@@ -102,12 +102,12 @@ static OPJ_SIZE_T opj_read_from_buffer(void * p_buffer,
    }
     else
    {
-    l_nb_read = (OPJ_UINT32)(p_source_buffer->buf + p_source_buffer->len - p_source_buffer->cur);
+    l_nb_read = (OPJ_SIZE_T)(p_source_buffer->buf + p_source_buffer->len - p_source_buffer->cur);
    }
     memcpy(p_buffer, p_source_buffer->cur, l_nb_read);
     p_source_buffer->cur += l_nb_read;
 
-    return l_nb_read ? l_nb_read : ((OPJ_UINT32)-1);
+    return l_nb_read ? l_nb_read : ((OPJ_SIZE_T)-1);
 }
 
 static OPJ_SIZE_T opj_write_from_buffer(void * p_buffer,
