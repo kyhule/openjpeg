@@ -607,11 +607,6 @@ typedef void * opj_codec_t;
 
 
 /*
- * Callback function prototype for function that frees user data
- */
-typedef void (* opj_stream_free_user_data_fn) (void * p_user_data) ;
-
-/*
  * Callback function prototype for read function
  */
 typedef OPJ_SIZE_T (* opj_stream_read_fn) (void * p_buffer, OPJ_SIZE_T p_nb_bytes, void * p_user_data) ;
